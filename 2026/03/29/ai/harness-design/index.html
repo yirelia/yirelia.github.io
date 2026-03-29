@@ -1,0 +1,675 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Harness 设计，正在成为 Agentic Coding 的关键变量 原文：harness-design-long-running-apps  在 Agentic Coding 的前沿实践里，真正决定效果上限的，往往不只是模型本身，而是 Harness 设计。原文作者围绕两个彼此关联的问题展开了一系列实验：一是如何让 Claude 产出更高质量的前端设计，二是如何让它在较长时间内持续自主完成完">
+<meta property="og:type" content="article">
+<meta property="og:title" content="harness-design">
+<meta property="og:url" content="http://example.com/2026/03/29/ai/harness-design/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="Harness 设计，正在成为 Agentic Coding 的关键变量 原文：harness-design-long-running-apps  在 Agentic Coding 的前沿实践里，真正决定效果上限的，往往不只是模型本身，而是 Harness 设计。原文作者围绕两个彼此关联的问题展开了一系列实验：一是如何让 Claude 产出更高质量的前端设计，二是如何让它在较长时间内持续自主完成完">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-29T01:24:34.000Z">
+<meta property="article:modified_time" content="2026-03-29T01:25:37.168Z">
+<meta property="article:author" content="Irelia">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>harness-design - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="harness-design"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-03-29 09:24" pubdate>
+          2026年3月29日 上午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          3.4k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          29 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">harness-design</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Harness-设计，正在成为-Agentic-Coding-的关键变量"><a href="#Harness-设计，正在成为-Agentic-Coding-的关键变量" class="headerlink" title="Harness 设计，正在成为 Agentic Coding 的关键变量"></a>Harness 设计，正在成为 Agentic Coding 的关键变量</h1><blockquote>
+<p><strong>原文</strong>：<a target="_blank" rel="noopener" href="https://www.anthropic.com/engineering/harness-design-long-running-apps">harness-design-long-running-apps</a></p>
+</blockquote>
+<p>在 Agentic Coding 的前沿实践里，真正决定效果上限的，往往不只是模型本身，而是 <strong>Harness 设计</strong>。原文作者围绕两个彼此关联的问题展开了一系列实验：一是如何让 Claude 产出更高质量的前端设计，二是如何让它在较长时间内持续自主完成完整的软件开发任务。相关工作最初建立在团队此前的前端设计 skill 和长时运行 coding agent harness 基础之上，虽然这些方法已经显著优于基线，但最终都遇到了新的瓶颈。</p>
+<p>为了突破这个瓶颈，作者尝试把一种更通用的 AI 工程思路同时应用到两个不同场景中：一个是高度主观、依赖审美判断的前端设计，另一个是更强调正确性与可用性的自主编程。其核心灵感来自 GAN，也就是生成对抗网络。基于这一思路，作者设计了一个由 <strong>生成者（generator）</strong> 和 <strong>评估者（evaluator）</strong> 组成的多智能体结构。关键点不只是让模型去“生成”，而是先把原本模糊的主观评价标准，转写为可执行、可打分、可迭代的规则体系。</p>
+<p>在此基础上，这套方法又被进一步迁移到长时自主编程场景中。作者延续了早期 harness 实践里的两个有效经验：第一，把复杂构建任务拆成可处理的小块；第二，使用结构化产物在不同 session 之间完成上下文交接。最终，形成了一套由 <strong>规划者（planner）—生成者（generator）—评估者（evaluator）</strong> 构成的三智能体架构，能够在持续数小时的自动化 coding session 中构建功能完整的全栈应用。</p>
+<h2 id="为什么“朴素实现”经常失效"><a href="#为什么“朴素实现”经常失效" class="headerlink" title="为什么“朴素实现”经常失效"></a>为什么“朴素实现”经常失效</h2><p>作者指出，早期实验已经证明：对于长时运行的 agentic coding 来说，harness 设计本身会显著影响最终表现。此前常见做法是：先由一个 initializer agent 把产品需求拆成任务列表，再由 coding agent 逐个功能实现，并通过 artifacts 在 session 之间传递上下文。社区里也逐渐出现了类似共识，例如通过 hooks 或脚本让 agent 持续迭代。</p>
+<p>但问题并没有被彻底解决。任务一旦变复杂，agent 仍然容易“跑偏”。作者将这类失败总结为两个典型模式。</p>
+<p>第一个问题是：当上下文窗口不断累积后，模型会逐渐失去长期任务中的连贯性；有些模型还会出现一种“上下文焦虑”，也就是当它感知自己接近上下文极限时，会提前进入“收尾状态”，导致任务被过早结束。为此，作者强调 <strong>context reset</strong> 的价值：不是简单压缩历史，而是直接清空上下文，用一个新 agent 接手，同时通过结构化 handoff artifact 传递前一阶段状态与下一步任务。这样既能缓解连贯性衰减，也能减少“上下文焦虑”。</p>
+<p>作者还专门区分了 <strong>compaction</strong> 和 <strong>reset</strong>。前者是对历史对话做压缩摘要，让同一个 agent 继续工作；后者则是彻底给 agent 一个“干净上下文”。compaction 虽然保留连续性，但并不能彻底消除上下文焦虑；reset 的代价则是 orchestration 更复杂，token 开销和延迟也会增加。</p>
+<p>第二个问题是 <strong>自我评估失真</strong>。当 agent 评估自己刚刚完成的工作时，往往会倾向于给出过于正面的判断。这个问题在设计类任务里尤其明显，因为设计没有像软件测试那样明确的二值验证标准；“一个界面是否高级”本身就是主观判断，模型在这种场景下更容易宽松打分。即便是在有明确可验证结果的软件任务里，模型也常常因为判断失误而影响任务推进。因此，把“执行者”和“评判者”拆开，是一个非常有效的改进方向。虽然 evaluator 本质上仍然是 LLM，也会天然偏向宽容，但<strong>训练一个外部、偏怀疑型的 evaluator，远比让 generator 对自己严格得多要现实得多</strong>。</p>
+<h2 id="前端设计：把主观审美转成可评分问题"><a href="#前端设计：把主观审美转成可评分问题" class="headerlink" title="前端设计：把主观审美转成可评分问题"></a>前端设计：把主观审美转成可评分问题</h2><p>作者最早把这套机制用在前端设计任务上，因为这里的“自评失真”最容易被观察到。默认情况下，Claude 往往会生成技术上没问题、但视觉上比较保守、套路化明显的界面。</p>
+<p>围绕前端设计，作者形成了两个关键判断。第一，审美虽然无法被彻底量化，但可以通过一套明确的设计原则和偏好规则，转化为可评分的问题。比如，“这个设计美不美”很难稳定回答，但“这个设计是否符合我们定义的好设计原则”就更容易成为一个清晰的评估项。第二，一旦把前端生成和前端评审拆成两个 agent，就能形成一个持续驱动质量提升的反馈闭环。</p>
+<p>基于此，作者为 generator 和 evaluator 都定义了四项评分标准：</p>
+<h3 id="1-设计质量（Design-Quality）"><a href="#1-设计质量（Design-Quality）" class="headerlink" title="1. 设计质量（Design Quality）"></a>1. 设计质量（Design Quality）</h3><p>界面是否呈现为一个统一、连贯的整体，而不是零散元素的堆砌。优秀设计应当让配色、排版、布局、图像与细节共同塑造出鲜明的气质和身份感。</p>
+<h3 id="2-原创性（Originality）"><a href="#2-原创性（Originality）" class="headerlink" title="2. 原创性（Originality）"></a>2. 原创性（Originality）</h3><p>界面中是否存在真实的定制化决策，而不是模板布局、组件库默认样式或典型 AI 生成套路。一个人类设计师应当能识别出其中有意识的创意选择；未经修改的 stock 组件，或者“白底卡片+紫色渐变”这类典型 AI 痕迹，都应被判为不合格。</p>
+<h3 id="3-工艺质量（Craft）"><a href="#3-工艺质量（Craft）" class="headerlink" title="3. 工艺质量（Craft）"></a>3. 工艺质量（Craft）</h3><p>主要看技术层面的完成度，例如字重层级、间距一致性、色彩和谐、对比度等。这更像是“基本功检查”，而不是创意判断。多数合理实现默认就能过关，失败通常说明基础设计能力有问题。</p>
+<h3 id="4-功能性（Functionality）"><a href="#4-功能性（Functionality）" class="headerlink" title="4. 功能性（Functionality）"></a>4. 功能性（Functionality）</h3><p>即便不考虑美观，用户是否也能清楚理解界面用途，快速找到主要操作，并顺利完成任务。</p>
+<p>在权重上，作者明确强调 <strong>设计质量和原创性高于工艺与功能性</strong>。原因是 Claude 在 craft 和 functionality 上本来就表现不错，真正拉不开差距的，是设计是否有气质、是否摆脱“AI 味”。因此，这套标准会对高度泛化、模板化的“AI slop”进行明确惩罚，从而迫使模型在审美层面承担更大的探索风险。</p>
+<p>为了让 evaluator 的判断更稳定，作者还使用了带有详细评分拆解的 few-shot 示例进行校准，尽量让评估器的审美口径与自己保持一致，并减少多轮迭代中的评分漂移。</p>
+<p>在工程实现上，这套循环构建于 Claude Agent SDK 之上。流程是：先由 generator 生成 HTML&#x2F;CSS&#x2F;JS 前端，再由接入了 Playwright MCP 的 evaluator 直接操作正在运行的页面，自己浏览、截图、观察，再按照四项标准给出评分和详细批评。随后，这些反馈被回传给 generator，作为下一轮迭代的输入。整个过程通常会持续 5 到 15 轮，有些任务甚至要跑上 4 个小时。作者还要求 generator 在每轮结束后做一个策略判断：如果评分趋势向好，就继续在当前方向精修；如果方向本身不成立，就主动做大的风格转向。</p>
+<p>从结果来看，evaluator 的评分通常会随着迭代上升，之后进入平台期，但仍留有提升空间。有些案例是渐进优化，有些则会在中途突然发生显著的审美跃迁。更有意思的是，作者发现 <strong>评分标准的措辞本身，也在反向塑造 generator 的输出风格</strong>。例如，当规则里写入“最好的设计应该有博物馆级别的质感”这类描述时，模型会朝某种特定视觉趋向收敛。这说明，prompt 中对标准的表述方式，不只是评估语言，也会变成生成方向的隐性约束。</p>
+<p>作者还提到，虽然整体分数通常会逐轮提高，但提升曲线并不总是线性的。后期版本整体上经常更成熟，但也存在中间某一轮反而比最终轮更讨喜的情况。同时，随着轮次增加，生成方案的实现复杂度也往往上升，因为 generator 会根据 evaluator 的反馈主动尝试更激进、更复杂的设计解法。甚至在第一轮里，仅仅因为有了这些评分标准和相关表述，输出质量就已经明显高于完全不加约束的 baseline。</p>
+<p>一个典型案例是：作者让模型生成一个“荷兰艺术博物馆”的网站。到第九轮时，它已经给出一个质量不错的深色落地页；但到第十轮，模型完全推翻前面的方案，改成一个具有空间感的 3D 展厅体验：用 CSS 透视渲染棋盘格地面，墙面上自由挂置艺术作品，页面导航也不再依赖滚动或普通点击，而是通过“穿门进入下一个展厅”的方式完成。这种跃迁式创意，并不是单次生成里常见的结果。</p>
+<h2 id="从前端实验走向全栈自主开发"><a href="#从前端实验走向全栈自主开发" class="headerlink" title="从前端实验走向全栈自主开发"></a>从前端实验走向全栈自主开发</h2><p>在前端实验验证有效后，作者把这套带有 GAN 思路的 generator-evaluator 模式，进一步迁移到了全栈开发中。在软件工程语境下，这个结构其实非常自然：design evaluator 的位置，几乎就对应了现实开发流程里的 code review 和 QA。</p>
+<p>这一次，作者没有停留在双 agent，而是构建了一个更完整的三智能体体系：</p>
+<h3 id="Planner"><a href="#Planner" class="headerlink" title="Planner"></a>Planner</h3><p>Planner 的职责，是把用户给出的 1 到 4 句话短提示，扩展成一份完整产品规格说明。作者要求它在范围上尽可能大胆，但重点放在产品上下文和高层技术设计，而非过早给出过细的实现细节。因为如果 planner 在前期就写死大量技术实现，而其中某些判断又是错的，这些错误会沿着规格一路传递到后续实现中。相比之下，更合理的做法是：先约束交付目标，再让后续 agent 在实现过程中自己探索路径。作者还要求 planner 主动在产品方案中寻找可融合的 AI 特性。</p>
+<h3 id="Generator"><a href="#Generator" class="headerlink" title="Generator"></a>Generator</h3><p>Generator 延续了之前“按功能逐项实现”的工作方式，但这次被组织成一个个 sprint。每个 sprint 从 spec 中选取一项功能目标，使用 React、Vite、FastAPI 和 SQLite（后期改为 PostgreSQL）去完成实现。作者还要求 generator 在每轮 sprint 结束时做自我检查，再把结果交给 QA；同时，它也具备 git 版本管理能力。</p>
+<h3 id="Evaluator"><a href="#Evaluator" class="headerlink" title="Evaluator"></a>Evaluator</h3><p>Evaluator 则扮演真正的产品验收者。早期 harness 产出的应用常常“看起来不错”，但一旦上手点几下就会暴露很多真实 bug。为此，evaluator 通过 Playwright MCP 像真实用户一样点击运行中的应用，检查 UI 功能、API 接口和数据库状态，并基于“产品深度、功能完整性、视觉设计、代码质量”等标准对 sprint 进行打分。每个维度都有硬阈值，只要有一项不达标，这个 sprint 就会被判失败，generator 需要根据详细反馈继续修正。</p>
+<p>另一个关键机制，是在每个 sprint 开始前，generator 和 evaluator 先协商一个 <strong>sprint contract</strong>，也就是先定义清楚这一小段工作“完成”的标准。之所以要多这一步，是因为 planner 产出的产品 spec 本身故意保持高层抽象，需要有一个中间桥梁，把用户故事转化为可测试、可验收的具体实现目标。generator 先提方案，说明本轮做什么、如何验证成功；evaluator 再检查这份方案是否真的对齐目标。双方不断调整，直到达成一致。</p>
+<p>在 agent 间通信上，这套系统采用 <strong>文件作为交接媒介</strong>：一个 agent 写文件，另一个 agent 读取文件后再回复到同一文件或新文件中。随后 generator 再基于双方确认过的 contract 去编码实现，最后交给 evaluator 做 QA。这样的好处是，系统既能保持对 spec 的忠实，又不会在任务一开始就把实现路径限制得过死。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>这篇文章真正有价值的地方，不是简单证明“多智能体比单智能体更强”，而是揭示了一个更重要的结论：在 Agent 时代，<strong>系统设计本身就是能力的一部分</strong>。模型能力决定下限，但 harness 设计、任务拆解、上下文管理、评估闭环与 agent 协作方式，才决定了最终能否逼近上限。</p>
+<p>换句话说，未来真正拉开差距的，未必只是“谁的模型更大”，而更可能是谁更懂得设计一套能让模型持续发挥、持续纠错、持续演进的工作系统。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>harness-design</div>
+      <div>http://example.com/2026/03/29/ai/harness-design/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年3月29日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../28/nginx-command/nginx-command/" title="Nginx 常用命令">
+                        <span class="hidden-mobile">Nginx 常用命令</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

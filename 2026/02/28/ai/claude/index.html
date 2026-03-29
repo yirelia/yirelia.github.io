@@ -1,0 +1,820 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="本文基于 X 平台用户 @trq212 的原帖内容翻译整理而成。原始观点与结构主要来自原作者 构建 Agent Harness 时，最难的是设计它的 Action Space构建一个 agent harness，最难的问题之一，是如何设计它的 action space（动作空间）。 Claude 通过 Tool Calling 与外部环境交互。但在 Claude API 中，工具并不只有一种构建方">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从智能体的角度考虑学习构建Claude code经验 （转推）">
+<meta property="og:url" content="http://example.com/2026/02/28/ai/claude/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="本文基于 X 平台用户 @trq212 的原帖内容翻译整理而成。原始观点与结构主要来自原作者 构建 Agent Harness 时，最难的是设计它的 Action Space构建一个 agent harness，最难的问题之一，是如何设计它的 action space（动作空间）。 Claude 通过 Tool Calling 与外部环境交互。但在 Claude API 中，工具并不只有一种构建方">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-02-28T13:57:55.000Z">
+<meta property="article:modified_time" content="2026-03-29T01:38:27.403Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="AI">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>从智能体的角度考虑学习构建Claude code经验 （转推） - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="从智能体的角度考虑学习构建Claude code经验 （转推）"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-02-28 21:57" pubdate>
+          2026年2月28日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          3k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          25 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">从智能体的角度考虑学习构建Claude code经验 （转推）</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <p><strong>本文基于 X 平台用户 <a target="_blank" rel="noopener" href="https://x.com/trq212">@trq212</a> 的<a target="_blank" rel="noopener" href="https://x.com/trq212/status/2027463795355095314">原帖</a>内容翻译整理而成。原始观点与结构主要来自原作者</strong></p>
+<h1 id="构建-Agent-Harness-时，最难的是设计它的-Action-Space"><a href="#构建-Agent-Harness-时，最难的是设计它的-Action-Space" class="headerlink" title="构建 Agent Harness 时，最难的是设计它的 Action Space"></a>构建 Agent Harness 时，最难的是设计它的 Action Space</h1><p>构建一个 agent harness，最难的问题之一，是如何设计它的 <strong>action space（动作空间）</strong>。</p>
+<p>Claude 通过 <strong>Tool Calling</strong> 与外部环境交互。但在 Claude API 中，工具并不只有一种构建方式。你可以基于多种基础原语来组织工具，例如 <code>bash</code>、<code>skills</code>，以及近来加入的 <strong>code execution（代码执行）</strong>。</p>
+<p>面对这些选项，一个关键问题就出现了：你应该如何为 agent 设计工具体系？</p>
+<p>是只给它一个足够通用的工具，比如代码执行或 bash？还是反过来，为它可能遇到的每一种场景都单独设计一个工具，最后堆出几十个工具？</p>
+<h2 id="从模型视角理解工具设计"><a href="#从模型视角理解工具设计" class="headerlink" title="从模型视角理解工具设计"></a>从模型视角理解工具设计</h2><p>为了更好理解这个问题，可以尝试站在模型的角度思考。</p>
+<p>假设你面前有一道很难的数学题。为了把它解出来，你最希望拥有哪些工具？答案显然取决于你本身具备什么能力。</p>
+<p>纸和笔是最基础的工具，但你会受限于手工计算。<br>计算器更进一步，但前提是你知道如何使用它的高级功能。<br>而最快、最强的工具无疑是计算机，但前提是你知道如何借助它编写并执行代码。</p>
+<p>这其实就是设计 agent 的一个有效框架：<br><strong>你给它的工具，应该匹配它已经具备的能力边界。</strong></p>
+<p>但新的问题是：你怎么知道模型到底擅长什么、不擅长什么？</p>
+<p>答案并不复杂：持续观察它、阅读它的输出、反复实验。<br>你需要学会“像 agent 一样思考”。</p>
+<p>下面这些经验，就是在构建 Claude Code 的过程中，通过持续观察 Claude 得到的一些结论。</p>
+<hr>
+<h1 id="提升-Elicitation：AskUserQuestion-工具的设计演化"><a href="#提升-Elicitation：AskUserQuestion-工具的设计演化" class="headerlink" title="提升 Elicitation：AskUserQuestion 工具的设计演化"></a>提升 Elicitation：AskUserQuestion 工具的设计演化</h1><p>在设计 <strong>AskUserQuestion</strong> 工具时，我们的目标，是提升 Claude 的提问能力，也就是通常所说的 <strong>elicitation</strong>。</p>
+<p>Claude 当然可以直接用自然语言向用户提问，但我们发现，这种方式的交互成本偏高。用户回答这些问题时，往往会感觉流程拖沓、效率不高。</p>
+<p>于是问题变成了：<br><strong>怎样降低交互摩擦，并提升用户与 Claude 之间的信息交换带宽？</strong></p>
+<h2 id="尝试一：修改-ExitPlanTool"><a href="#尝试一：修改-ExitPlanTool" class="headerlink" title="尝试一：修改 ExitPlanTool"></a>尝试一：修改 ExitPlanTool</h2><p>我们做的第一个尝试，是给 <code>ExitPlanTool</code> 增加一个参数，让它在输出计划的同时，附带一个问题数组。</p>
+<p>这是最容易实现的方案，但效果并不好。因为它把“输出计划”和“就计划提问”这两件事混在了一起，容易让 Claude 困惑。</p>
+<p>例如：</p>
+<ul>
+<li>如果用户的回答与原计划冲突怎么办？</li>
+<li>Claude 是否需要再次调用 <code>ExitPlanTool</code> 来修正计划？</li>
+<li>一个工具里同时承载计划与追问，边界是否过于模糊？</li>
+</ul>
+<p>很快我们意识到，这不是一个理想方案。</p>
+<h2 id="尝试二：修改输出格式"><a href="#尝试二：修改输出格式" class="headerlink" title="尝试二：修改输出格式"></a>尝试二：修改输出格式</h2><p>第二种方法，是修改 Claude 的输出格式要求，让它以一种可解析的 Markdown 结构来提问。</p>
+<p>例如，可以要求它输出一组带选项的项目符号问题，然后再由前端把这段内容解析成 UI。</p>
+<p>这个方案的优点是通用，且模型表面上也能较好地遵循这种格式。<br>但问题在于：<strong>不稳定。</strong></p>
+<p>Claude 有时会：</p>
+<ul>
+<li>额外补充无关句子</li>
+<li>漏掉选项</li>
+<li>临时改用别的格式</li>
+</ul>
+<p>也就是说，这种方式“经常能用”，但“不可靠”。</p>
+<h2 id="尝试三：单独设计-AskUserQuestion-工具"><a href="#尝试三：单独设计-AskUserQuestion-工具" class="headerlink" title="尝试三：单独设计 AskUserQuestion 工具"></a>尝试三：单独设计 AskUserQuestion 工具</h2><p>最后，我们选择了第三种方案：<br>直接设计一个独立的 <strong>AskUserQuestion</strong> 工具。</p>
+<p>Claude 可以在任意时刻调用它，但在 <strong>plan mode</strong> 下会被特别鼓励这样做。<br>当这个工具被触发时，系统会弹出一个模态框展示问题，并暂停 agent loop，直到用户完成回答。</p>
+<p>这个方案带来了几个明显优势：</p>
+<ol>
+<li>可以强制 Claude 以结构化方式输出问题</li>
+<li>更容易保证问题里包含多个选项</li>
+<li>便于在 Agent SDK 或 skills 中复用</li>
+<li>工具边界清晰，不再和其他职责混淆</li>
+</ol>
+<p>更关键的是：<strong>Claude 本身似乎很愿意调用这个工具，而且调用效果不错。</strong></p>
+<p>这一点其实非常重要。<br>一个工具设计得再精妙，如果模型不知道该怎么调用，或者不愿意调用，它依然不会真正发挥作用。</p>
+<p>这是否已经是 Claude Code 中 elicitation 的最终形态？未必。<br>因为后面的例子会说明：<strong>适用于一个模型的方法，未必就是另一个模型的最优解。</strong></p>
+<hr>
+<h1 id="随着模型能力变化，工具也要跟着变化：从-Todos-到-Tasks"><a href="#随着模型能力变化，工具也要跟着变化：从-Todos-到-Tasks" class="headerlink" title="随着模型能力变化，工具也要跟着变化：从 Todos 到 Tasks"></a>随着模型能力变化，工具也要跟着变化：从 Todos 到 Tasks</h1><p>在 Claude Code 刚上线时，我们很快意识到，模型需要一个 <strong>Todo List</strong> 来维持任务方向感。</p>
+<p>于是我们提供了 <code>TodoWrite</code> 工具，让 Claude 可以：</p>
+<ul>
+<li>创建 Todo</li>
+<li>更新 Todo</li>
+<li>在执行过程中逐项勾选</li>
+<li>把 Todo 展示给用户</li>
+</ul>
+<p>这在初期很有帮助，因为它让模型有了一个显式的任务跟踪机制。</p>
+<p>但即便如此，我们仍然经常看到 Claude 忘记自己正在做什么。<br>为了解决这个问题，我们一度在系统层每 5 个 turn 插入一次提醒，反复告诉它当前目标。</p>
+<h2 id="模型变强之后，原有工具可能反而变成束缚"><a href="#模型变强之后，原有工具可能反而变成束缚" class="headerlink" title="模型变强之后，原有工具可能反而变成束缚"></a>模型变强之后，原有工具可能反而变成束缚</h2><p>随着模型能力提升，情况开始变化。</p>
+<p>我们发现，模型不仅不再那么需要 Todo 提醒，反而会被它限制住。<br>系统不断提醒 Todo List，会让 Claude 误以为自己必须严格遵守已有列表，而不是根据新情况主动调整任务。</p>
+<p>与此同时，Opus 4.5 在使用 <strong>subagents（子代理）</strong> 上的表现也明显提升。<br>这时，一个新问题出现了：</p>
+<p><strong>如果多个子代理要协同工作，它们如何共享和协调一个固定的 Todo List？</strong></p>
+<p>于是我们意识到，原来的 <code>TodoWrite</code> 已经不再适合新的能力形态。</p>
+<h2 id="从-TodoWrite-切换到-Task-Tool"><a href="#从-TodoWrite-切换到-Task-Tool" class="headerlink" title="从 TodoWrite 切换到 Task Tool"></a>从 TodoWrite 切换到 Task Tool</h2><p>后续，我们用 <strong>Task Tool</strong> 替代了 <code>TodoWrite</code>。</p>
+<p>这两者的核心差异在于：</p>
+<ul>
+<li><strong>Todos</strong> 的目标，是让模型“不跑偏”</li>
+<li><strong>Tasks</strong> 的目标，是让多个 agent “更好协同”</li>
+</ul>
+<p>相比 Todo，Task 更适合多 agent 场景，因为它支持：</p>
+<ul>
+<li>任务依赖关系</li>
+<li>跨子代理共享更新</li>
+<li>任务的修改与删除</li>
+</ul>
+<p>这背后的经验很直接：</p>
+<blockquote>
+<p>随着模型能力提升，过去“必需”的工具，今天可能已经在限制模型。</p>
+</blockquote>
+<p>因此，工具设计不是一次性工作，而需要持续回看和重估。<br>这也是为什么，在实际产品中，维持一组能力画像相对接近的模型，往往更容易做工具体系设计。</p>
+<hr>
+<h1 id="搜索接口设计：让模型自己构建上下文"><a href="#搜索接口设计：让模型自己构建上下文" class="headerlink" title="搜索接口设计：让模型自己构建上下文"></a>搜索接口设计：让模型自己构建上下文</h1><p>对 Claude 来说，一类极其重要的工具，是那些能够帮助它 <strong>主动构建上下文</strong> 的搜索工具。</p>
+<p>在 Claude Code 早期，我们使用 RAG 向量数据库为 Claude 提供上下文。</p>
+<p>RAG 的优点很明显：</p>
+<ul>
+<li>快</li>
+<li>强大</li>
+<li>检索能力好</li>
+</ul>
+<p>但问题同样明显：</p>
+<ul>
+<li>需要建立索引</li>
+<li>需要额外配置</li>
+<li>在不同环境中可能比较脆弱</li>
+<li>更重要的是：上下文是“给”Claude 的，而不是“由 Claude 自己找到”的</li>
+</ul>
+<h2 id="如果它能搜网页，为什么不能搜代码库？"><a href="#如果它能搜网页，为什么不能搜代码库？" class="headerlink" title="如果它能搜网页，为什么不能搜代码库？"></a>如果它能搜网页，为什么不能搜代码库？</h2><p>后来我们开始思考一个问题：</p>
+<p>如果 Claude 能搜索网络，那为什么不能搜索代码库本身？</p>
+<p>于是，我们给 Claude 增加了一个 <strong>Grep 工具</strong>。<br>有了它，Claude 就可以自己检索文件、主动拼装上下文，而不是被动接收一段预先准备好的材料。</p>
+<p>随着模型能力提升，我们越来越清楚地看到一个趋势：</p>
+<blockquote>
+<p>只要提供合适工具，Claude 会越来越擅长自己构建所需上下文。</p>
+</blockquote>
+<p>这也是后来 <strong>Agent Skills</strong> 所正式引入的理念：<br><strong>Progressive Disclosure（渐进披露）</strong></p>
+<hr>
+<h1 id="Progressive-Disclosure：不用加新工具，也能扩展能力"><a href="#Progressive-Disclosure：不用加新工具，也能扩展能力" class="headerlink" title="Progressive Disclosure：不用加新工具，也能扩展能力"></a>Progressive Disclosure：不用加新工具，也能扩展能力</h1><p>所谓渐进披露，本质上是让 agent 通过探索逐步发现自己需要的信息，而不是在一开始就把所有信息都塞进上下文。</p>
+<p>例如，Claude 可以先读取一个 skill 文件，而这个文件又可以引用其他文件，模型再递归读取这些内容。<br>这样一来，它就能按需逐层展开信息，而不是一次性吞下全部背景。</p>
+<p>实际上，skills 的一个常见用途，就是为 Claude 增加“搜索型能力”，例如：</p>
+<ul>
+<li>告诉它某个 API 应该怎么调用</li>
+<li>告诉它数据库该如何查询</li>
+<li>告诉它某个系统接口的使用方式</li>
+</ul>
+<p>在过去一年里，Claude 在这方面的能力变化非常明显：<br>它从几乎无法主动建立上下文，逐步发展到可以跨越多层文件进行嵌套搜索，最终找到自己真正需要的那部分信息。</p>
+<p>因此，<strong>渐进披露</strong> 现在已经成为一个非常常用的设计模式：<br><strong>在不新增工具的前提下，给模型增加新的功能空间。</strong></p>
+<hr>
+<h1 id="Claude-Code-Guide-Agent：通过子代理扩展动作空间"><a href="#Claude-Code-Guide-Agent：通过子代理扩展动作空间" class="headerlink" title="Claude Code Guide Agent：通过子代理扩展动作空间"></a>Claude Code Guide Agent：通过子代理扩展动作空间</h1><p>目前 Claude Code 大约有 20 个工具，而我们始终在反复问自己：<br>这些工具真的都必要吗？</p>
+<p>因为每增加一个工具，模型就多了一个要考虑的选项。<br>工具越多，不一定越强，也可能越乱。</p>
+<p>一个典型案例是：我们发现 Claude 并不真正了解“如何使用 Claude Code 本身”。</p>
+<p>例如，如果用户问它：</p>
+<ul>
+<li>如何添加 MCP？</li>
+<li>slash command 是什么？</li>
+<li>某个功能怎么配置？</li>
+</ul>
+<p>它经常无法给出合格回答。</p>
+<h2 id="为什么不把这些信息直接塞进-system-prompt？"><a href="#为什么不把这些信息直接塞进-system-prompt？" class="headerlink" title="为什么不把这些信息直接塞进 system prompt？"></a>为什么不把这些信息直接塞进 system prompt？</h2><p>一种简单方法，是把所有这类帮助信息直接放进 system prompt。<br>但问题在于，这些信息大多数时候并不会被问到。</p>
+<p>如果把它们长期塞在上下文里，会带来两个问题：</p>
+<ol>
+<li>增加 context rot</li>
+<li>干扰 Claude Code 的主任务 —— 写代码</li>
+</ol>
+<h2 id="用渐进披露替代工具扩张"><a href="#用渐进披露替代工具扩张" class="headerlink" title="用渐进披露替代工具扩张"></a>用渐进披露替代工具扩张</h2><p>于是我们先尝试了一种渐进披露方案：<br>给 Claude 一个文档链接，让它在需要时自己加载文档并搜索答案。</p>
+<p>这个方法可行，但也有一个缺点：<br>Claude 往往会把大量搜索结果读进上下文，只为了找到一个本来可以直接返回的答案。</p>
+<p>因此，我们进一步构建了 <strong>Claude Code Guide subagent</strong>。</p>
+<p>当用户询问 Claude 关于“它自己”的问题时，系统会提示它调用这个子代理。<br>这个子代理内部带有详细指令，专门告诉它：</p>
+<ul>
+<li>如何高效搜索文档</li>
+<li>应该返回什么信息</li>
+<li>应该省略什么内容</li>
+</ul>
+<p>虽然这个方案仍不完美，Claude 在回答“如何配置自己”这类问题时偶尔还是会困惑，但整体效果已经明显优于过去。</p>
+<p>更重要的是，我们做到了一点：</p>
+<blockquote>
+<p><strong>在没有新增工具的前提下，扩展了 Claude 的 action space。</strong></p>
+</blockquote>
+<hr>
+<h1 id="工具设计是一门艺术，不是一套公式"><a href="#工具设计是一门艺术，不是一套公式" class="headerlink" title="工具设计是一门艺术，不是一套公式"></a>工具设计是一门艺术，不是一套公式</h1><p>如果你期待的是一套严格、固定、可直接套用的工具设计规则，那这并不是那样的指南。</p>
+<p>为模型设计工具，既是一门科学，也是一门艺术。<br>它高度依赖于三个变量：</p>
+<ul>
+<li>你使用的模型</li>
+<li>agent 的目标</li>
+<li>它所运行的环境</li>
+</ul>
+<p>因此，没有一套对所有 agent 都成立的标准答案。</p>
+<p>真正有效的方法通常是：</p>
+<ul>
+<li>持续实验</li>
+<li>仔细阅读模型输出</li>
+<li>频繁调整工具设计</li>
+<li>不断尝试新的组织方式</li>
+</ul>
+<p>归根到底，你需要学会的，是：</p>
+<p><strong>像 agent 一样去观察问题。</strong></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/AI/" class="print-no-link">#AI</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>从智能体的角度考虑学习构建Claude code经验 （转推）</div>
+      <div>http://example.com/2026/02/28/ai/claude/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年2月28日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="../../../../03/28/nginx-command/nginx-command/" title="Nginx 常用命令">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Nginx 常用命令</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../../../2025/11/09/svg/modelica/" title="modelica图形化处理方案">
+                        <span class="hidden-mobile">modelica图形化处理方案</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

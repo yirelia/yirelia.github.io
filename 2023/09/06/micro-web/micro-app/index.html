@@ -1,0 +1,784 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="搭建平台基座 基座与平台无关，技术栈 vite + vue3 + element-plusmicro-app v0.8.1micro-app 1.0.0-beta 版本  通过vite 脚手架搭建项目  12# npm 7+, extra double-dash is needed:npm create vite@latest my-vue-app -- --template vue-ts  安装">
+<meta property="og:type" content="article">
+<meta property="og:title" content="micro-app 搭建记录">
+<meta property="og:url" content="http://example.com/2023/09/06/micro-web/micro-app/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="搭建平台基座 基座与平台无关，技术栈 vite + vue3 + element-plusmicro-app v0.8.1micro-app 1.0.0-beta 版本  通过vite 脚手架搭建项目  12# npm 7+, extra double-dash is needed:npm create vite@latest my-vue-app -- --template vue-ts  安装">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/micro-app/cors-error.png">
+<meta property="article:published_time" content="2023-09-06T15:11:39.000Z">
+<meta property="article:modified_time" content="2025-11-09T00:44:28.562Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="vue">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/micro-app/cors-error.png">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>micro-app 搭建记录 - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="micro-app 搭建记录"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-09-06 23:11" pubdate>
+          2023年9月6日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          1.3k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          11 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">micro-app 搭建记录</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="搭建平台基座"><a href="#搭建平台基座" class="headerlink" title="搭建平台基座"></a>搭建平台基座</h1><blockquote>
+<p>基座与平台无关，技术栈 vite + vue3 + element-plus<br><a target="_blank" rel="noopener" href="https://zeroing.jd.com/micro-app/docs.html#/">micro-app v0.8.1</a><br><a target="_blank" rel="noopener" href="https://micro-zoe.com/docs/1.x/#/zh-cn/start">micro-app 1.0.0-beta 版本</a></p>
+</blockquote>
+<h2 id="通过vite-脚手架搭建项目"><a href="#通过vite-脚手架搭建项目" class="headerlink" title="通过vite 脚手架搭建项目"></a>通过vite 脚手架搭建项目</h2><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># npm 7+, extra double-dash is needed:</span><br>npm create vite@latest my-vue-app -- --template vue-ts<br></code></pre></td></tr></table></figure>
+<ul>
+<li>安装 micro-app <p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p></li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">npm i @micro-zoe/micro-app --save<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>入口文件添加 <strong>micro-app</strong><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p></li>
+</ul>
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> microApp <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@micro-zoe/micro-app&#x27;</span>;<br>microApp.<span class="hljs-title function_">start</span>(&#123;<br>   <span class="hljs-attr">destroy</span>: <span class="hljs-literal">true</span><br>&#125;)<br><br>constapp = <span class="hljs-title function_">createApp</span>()<br>app.<span class="hljs-title function_">mount</span>(<span class="hljs-string">&#x27;#root&#x27;</span>)<br></code></pre></td></tr></table></figure>
+
+<h2 id="安装element-plus"><a href="#安装element-plus" class="headerlink" title="安装element-plus"></a>安装element-plus</h2><p>| 由于 micro-app 基座应用的样式类无法被隔离，建议修改elment-plus样式类的命名空间</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">npm i element-plus<br></code></pre></td></tr></table></figure>
+<p>修改 element-plus 命名空间<br>element plus 当前可以全局导入，如果需要按需导入修改命名空间 可参考官网</p>
+<p><strong>设置 ElConfigProvider</strong><br>使用 ElConfigProvider 包装您的根组件。</p>
+<p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;!-- App.vue --&gt;<br>&lt;template&gt;<br>  &lt;el-config-provider namespace=&quot;sk&quot;&gt;<br>    &lt;router-view&gt;&lt;/router-view&gt;<br>  &lt;/el-config-provider&gt;<br>&lt;/template&gt;<br></code></pre></td></tr></table></figure>
+<p><strong>设置 SCSS 和 CSS 变量</strong><br>创建 styles&#x2F;element&#x2F;index.scss：</p>
+<p class="code-caption" data-lang="scss" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight scss"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs scss"><span class="hljs-comment">// styles/element/index.scss</span><br><span class="hljs-comment">// we can add this to custom namespace, default is &#x27;el&#x27;</span><br><span class="hljs-keyword">@forward</span> <span class="hljs-string">&#x27;element-plus/theme-chalk/src/mixins/config.scss&#x27;</span> with (<br>  <span class="hljs-variable">$namespace</span>: <span class="hljs-string">&#x27;sk&#x27;</span><br>);<br><br><span class="hljs-keyword">@use</span> <span class="hljs-string">&quot;element-plus/theme-chalk/src/index.scss&quot;</span> as *;<br><span class="hljs-comment">// ...</span><br></code></pre></td></tr></table></figure>
+<p>在 vite.config.ts 中导入 styles&#x2F;element&#x2F;index.scss：</p>
+<p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs ts"><span class="hljs-keyword">import</span> &#123; defineConfig &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite&#x27;</span><br><span class="hljs-comment">// https://vitejs.dev/config/</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title function_">defineConfig</span>(&#123;<br>  <span class="hljs-comment">// ...</span><br>  <span class="hljs-attr">css</span>: &#123;<br>    <span class="hljs-attr">preprocessorOptions</span>: &#123;<br>      <span class="hljs-attr">scss</span>: &#123;<br>        <span class="hljs-attr">additionalData</span>: <span class="hljs-string">`@use &quot;~/styles/element/index.scss&quot; as *;`</span>,<br>      &#125;,<br>    &#125;,<br>  &#125;,<br>  <span class="hljs-comment">// ...</span><br>&#125;)<br></code></pre></td></tr></table></figure>
+
+<h2 id="子应用-vite-挂载"><a href="#子应用-vite-挂载" class="headerlink" title="子应用 vite 挂载"></a>子应用 vite 挂载</h2><ul>
+<li>挂载子应用路由<p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p></li>
+</ul>
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs ts"><span class="hljs-keyword">const</span> router = <span class="hljs-title function_">createRouter</span>(&#123;<br>  <span class="hljs-attr">history</span>: <span class="hljs-title function_">createWebHistory</span>(<span class="hljs-keyword">import</span>.<span class="hljs-property">meta</span>.<span class="hljs-property">env</span>.<span class="hljs-property">BASE_URL</span>),<br>  <span class="hljs-attr">routes</span>: [<br>    ...,<br>    &#123;<br>      <span class="hljs-attr">path</span>: <span class="hljs-string">&#x27;/mse:*&#x27;</span>,<br>      <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;mse&#x27;</span>,<br>      <span class="hljs-attr">component</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">&#x27;@/views/mse/index.vue&#x27;</span>),<br>    &#125;,<br>  ],<br>&#125;);<br></code></pre></td></tr></table></figure>
+<ul>
+<li>vite子应用组件挂载<br>子应用micro-app 中需要区分 URL与baseroute 关系具体可<a target="_blank" rel="noopener" href="https://zeroing.jd.com/micro-app/docs.html#/zh-cn/route">参考官网</a><ul>
+<li>URL 为获取index.html静态资源的加载路由</li>
+<li>baseroute 为下发子应用的区分路由</li>
+</ul>
+</li>
+</ul>
+<h3 id="关闭-disable-sandbox"><a href="#关闭-disable-sandbox" class="headerlink" title="关闭 disable-sandbox"></a>关闭 disable-sandbox</h3><p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs ts">&lt;template&gt;<br>  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;mse-iframe-container&quot;</span>&gt;</span></span><br><span class="language-xml">  // 加载vite 应用需要关闭沙箱</span><br><span class="language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">micro-app</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;mse&quot;</span> <span class="hljs-attr">url</span>=<span class="hljs-string">&quot;http://localhost:8004&quot;</span> <span class="hljs-attr">:data</span>=<span class="hljs-string">&quot;&#123;&#125;&quot;</span> <span class="hljs-attr">baseroute</span>=<span class="hljs-string">&quot;/child/vite-vue&quot;</span> <span class="hljs-attr">inline</span> <span class="hljs-attr">disablesandbox</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">micro-app</span>&gt;</span></span><br><span class="language-xml">  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span><br>&lt;/template&gt;<br><span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">setup</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">&quot;ts&quot;</span>&gt;</span><span class="language-javascript"></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">import</span> &#123; <span class="hljs-title class_">EventCenterForMicroApp</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@micro-zoe/micro-app&#x27;</span></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">import</span> config, &#123; getAppUrl &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/micro-app/config.ts&#x27;</span></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">import</span> &#123; ref &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vue&#x27;</span>;</span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-comment">// @ts-ignore 因为vite子应用关闭了沙箱，我们需要为子应用mse创建EventCenterForMicroApp对象来实现数据通信</span></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-variable language_">window</span>.<span class="hljs-property">eventCenterForAppNameVite</span> = <span class="hljs-keyword">new</span> <span class="hljs-title class_">EventCenterForMicroApp</span>(<span class="hljs-string">&#x27;mse&#x27;</span>)</span></span><br><span class="language-javascript"><span class="language-xml"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span></span><br><span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">style</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">&quot;less&quot;</span> <span class="hljs-attr">scoped</span>&gt;</span><span class="language-css"></span></span><br><span class="language-css"><span class="language-xml"><span class="hljs-selector-class">.mse-iframe-container</span> &#123;</span></span><br><span class="language-css"><span class="language-xml">  <span class="hljs-attribute">height</span>: <span class="hljs-number">100%</span>;</span></span><br><span class="language-css"><span class="language-xml">&#125;</span></span><br><span class="language-css"><span class="language-xml"></span><span class="hljs-tag">&lt;/<span class="hljs-name">style</span>&gt;</span></span><br></code></pre></td></tr></table></figure>
+
+<h3 id="Iframe-沙箱模式加载-BETA-1-0-公测支持"><a href="#Iframe-沙箱模式加载-BETA-1-0-公测支持" class="headerlink" title="Iframe 沙箱模式加载(BETA 1.0 公测支持)"></a>Iframe 沙箱模式加载(BETA 1.0 公测支持)</h3><blockquote>
+<p>推荐使用</p>
+</blockquote>
+<p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs ts">&lt;template&gt;<br>  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span></span><br><span class="language-xml">    <span class="hljs-tag">&lt;<span class="hljs-name">micro-app</span> <span class="hljs-attr">:name</span>=<span class="hljs-string">&quot;name&quot;</span> <span class="hljs-attr">:url</span>=<span class="hljs-string">&quot;url&quot;</span> <span class="hljs-attr">:data</span>=<span class="hljs-string">&quot;data&quot;</span> <span class="hljs-attr">iframe</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">micro-app</span>&gt;</span></span><br><span class="language-xml">  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span><br>&lt;/template&gt;<br><span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">setup</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">&quot;ts&quot;</span>&gt;</span><span class="language-javascript"></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">import</span> config, &#123; getAppUrl &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/micro-app/config.ts&#x27;</span></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">import</span> &#123; ref &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vue&#x27;</span>;</span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">import</span> &#123; useMicroData &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/micro-app/micro-data-hooks&#x27;</span>;</span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">const</span> name = config.<span class="hljs-property">mse</span>.<span class="hljs-property">appName</span></span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">const</span> url = <span class="hljs-title function_">ref</span>(<span class="hljs-string">&#x27;http://localhost:9001&#x27;</span>)</span></span><br><span class="language-javascript"><span class="language-xml"><span class="hljs-keyword">const</span> data = <span class="hljs-title function_">reactive</span>(&#123;&#125;)</span></span><br><span class="language-javascript"><span class="language-xml"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span></span><br></code></pre></td></tr></table></figure>
+
+<h1 id="vite-子应用"><a href="#vite-子应用" class="headerlink" title="vite 子应用"></a>vite 子应用</h1><blockquote>
+<p>按照正常方式搭建vite 子应用，main.ts &amp;&amp; serve 服务需要改造</p>
+</blockquote>
+<h2 id="关闭-disable-sandbox-模式-子应用的-main-ts-配置"><a href="#关闭-disable-sandbox-模式-子应用的-main-ts-配置" class="headerlink" title="关闭 disable-sandbox 模式 子应用的 main.ts 配置"></a>关闭 disable-sandbox 模式 子应用的 main.ts 配置</h2><h3 id="main-ts-入口文件文件"><a href="#main-ts-入口文件文件" class="headerlink" title="main.ts 入口文件文件"></a>main.ts 入口文件文件</h3><p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs ts"><span class="hljs-keyword">function</span> <span class="hljs-title function_">handleMicroData</span> (<span class="hljs-params"></span>) &#123;<br>  <span class="hljs-comment">// eventCenterForAppNameVite 是基座添加到window的数据通信对象</span><br>  <span class="hljs-keyword">if</span> (<span class="hljs-variable language_">window</span>.<span class="hljs-property">eventCenterForAppNameVite</span>) &#123;<br>    <span class="hljs-comment">// 主动获取基座下发的数据</span><br>    <span class="hljs-keyword">const</span> rootData = <span class="hljs-variable language_">window</span>.<span class="hljs-property">eventCenterForAppNameVite</span>.<span class="hljs-title function_">getData</span>()<br>    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(rootData)<br>  &#125;<br>&#125;<br><span class="hljs-keyword">const</span> app = <span class="hljs-title function_">createApp</span>(<span class="hljs-title class_">App</span>)<br>app.<span class="hljs-title function_">use</span>(router);<br>app.<span class="hljs-title function_">mount</span>(<span class="hljs-string">&#x27;#app&#x27;</span>)<br><br><span class="hljs-title function_">handleMicroData</span>()<br><span class="hljs-comment">// 监听卸载操作</span><br><span class="hljs-variable language_">window</span>.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&#x27;unmount&#x27;</span>, <span class="hljs-keyword">function</span> (<span class="hljs-params"></span>) &#123;<br>  app.<span class="hljs-title function_">unmount</span>()<br>  <span class="hljs-comment">// 卸载所有数据监听函数</span><br>  <span class="hljs-variable language_">window</span>.<span class="hljs-property">eventCenterForAppNameVite</span>?.<span class="hljs-title function_">clearDataListener</span>()<br>&#125;)<br></code></pre></td></tr></table></figure>
+<h3 id="vite-config-ts-配置"><a href="#vite-config-ts-配置" class="headerlink" title="vite.config.ts 配置"></a>vite.config.ts 配置</h3><ul>
+<li>server 需要支持 跨域请求</li>
+<li>打包时处理<ul>
+<li>指定域名设置</li>
+<li>通过动态basePath插件 vite-plugin-dynamic-base  类似webpack __webpack_public_path__</li>
+</ul>
+</li>
+</ul>
+<p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs ts"><span class="hljs-keyword">import</span> &#123; fileURLToPath, <span class="hljs-variable constant_">URL</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;node:url&#x27;</span><br><br><span class="hljs-keyword">import</span> &#123; defineConfig &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite&#x27;</span><br><span class="hljs-keyword">import</span> vue <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@vitejs/plugin-vue&#x27;</span><br><span class="hljs-keyword">import</span> vueJsx <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@vitejs/plugin-vue-jsx&#x27;</span><br><span class="hljs-keyword">import</span> &#123; dynamicBase &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite-plugin-dynamic-base&#x27;</span><br><span class="hljs-comment">// https://vitejs.dev/config/</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title function_">defineConfig</span>(&#123;<br>  <span class="hljs-attr">base</span>: process.<span class="hljs-property">env</span>.<span class="hljs-property">NODE_ENV</span> === <span class="hljs-string">&quot;production&quot;</span> ? <span class="hljs-string">&quot;__dynamic_base__&quot;</span> : <span class="hljs-string">&quot;/child/vite-vue/&quot;</span>,<br>  <span class="hljs-attr">plugins</span>: [<br>    <span class="hljs-title function_">vue</span>(),<br>    <span class="hljs-title function_">vueJsx</span>(),<br>    <span class="hljs-comment">//打包后 </span><br>    <span class="hljs-title function_">dynamicBase</span>(&#123;<br>      <span class="hljs-attr">publicPath</span>: <span class="hljs-string">&#x27;window.__dynamic_base__&#x27;</span>,<br>      <span class="hljs-attr">transformIndexHtml</span>:  <span class="hljs-literal">true</span><br>    &#125;)<br>  ],<br>  <span class="hljs-attr">server</span>: &#123;<br>    <span class="hljs-attr">port</span>: <span class="hljs-number">8004</span>,<br>    <span class="hljs-attr">headers</span>: &#123;<br>      <span class="hljs-string">&#x27;Access-Control-Allow-Origin&#x27;</span>: <span class="hljs-string">&#x27;*&#x27;</span>,<br>    &#125;,<br>    <span class="hljs-attr">cors</span>: <span class="hljs-literal">true</span>,<br>  &#125;,<br>  <span class="hljs-attr">resolve</span>: &#123;<br>    <span class="hljs-attr">alias</span>: &#123;<br>      <span class="hljs-string">&#x27;@&#x27;</span>: <span class="hljs-title function_">fileURLToPath</span>(<span class="hljs-keyword">new</span> <span class="hljs-title function_">URL</span>(<span class="hljs-string">&#x27;./src&#x27;</span>, <span class="hljs-keyword">import</span>.<span class="hljs-property">meta</span>.<span class="hljs-property">url</span>))<br>    &#125;<br>  &#125;<br>&#125;)<br></code></pre></td></tr></table></figure>
+<h3 id="主应用中需要-micro-app-加载时需要plugins-需要插件处理"><a href="#主应用中需要-micro-app-加载时需要plugins-需要插件处理" class="headerlink" title="主应用中需要 micro-app 加载时需要plugins 需要插件处理"></a>主应用中需要 micro-app 加载时需要plugins 需要插件处理</h3><p>参照官网 <a target="_blank" rel="noopener" href="https://zeroing.jd.com/micro-app/docs.html#/zh-cn/framework/vite?id=%e4%bd%9c%e4%b8%ba%e5%9f%ba%e5%ba%a7%e5%ba%94%e7%94%a8">vite 基座配置</a></p>
+<h2 id="Iframe-沙盒模式下配置"><a href="#Iframe-沙盒模式下配置" class="headerlink" title="Iframe 沙盒模式下配置"></a>Iframe 沙盒模式下配置</h2><h3 id="main-ts-配置"><a href="#main-ts-配置" class="headerlink" title="main.ts 配置"></a>main.ts 配置</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs javascript"><span class="hljs-comment">// 与基座进行数据交互</span><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">handleMicroData</span>(<span class="hljs-params">router: Router</span>) &#123;<br>  <span class="hljs-comment">// TODO 从全局获取数据，等APP 应用完全号了后规划</span><br>  <span class="hljs-keyword">const</span> rootData = <span class="hljs-variable language_">window</span>.<span class="hljs-property">microApp</span>.<span class="hljs-title function_">getGlobalData</span>();<br>  <span class="hljs-title function_">handleRootData</span>(rootData, router);<br>&#125;<br><br><span class="hljs-keyword">if</span> (<span class="hljs-title function_">isInMicroApp</span>()) &#123;<br>  <span class="hljs-title function_">handleMicroData</span>(router);<br>  <span class="hljs-comment">// 卸载应用</span><br>  <span class="hljs-variable language_">window</span>.<span class="hljs-property">unmount</span> = <span class="hljs-function">() =&gt;</span> &#123;<br>    app.<span class="hljs-title function_">unmount</span>();<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h3 id="vite-config-ts-配置-1"><a href="#vite-config-ts-配置-1" class="headerlink" title="vite-config.ts 配置"></a>vite-config.ts 配置</h3><p>  <a target="_blank" rel="noopener" href="https://micro-zoe.com/docs/1.x/#/zh-cn/framework/vite?id=%e4%bd%9c%e4%b8%ba%e5%ad%90%e5%ba%94%e7%94%a8">参考官网</a></p>
+<h1 id="部署"><a href="#部署" class="headerlink" title="部署"></a>部署</h1><p><a target="_blank" rel="noopener" href="https://zeroing.jd.com/micro-app/docs.html#/zh-cn/deploy">参考官网配置</a></p>
+<h1 id="问题-解决方案"><a href="#问题-解决方案" class="headerlink" title="问题&amp;&amp;解决方案"></a>问题&amp;&amp;解决方案</h1><h2 id="0-8-1-版本中部署后无法加载vite-子应用"><a href="#0-8-1-版本中部署后无法加载vite-子应用" class="headerlink" title="0.8.1 版本中部署后无法加载vite 子应用"></a>0.8.1 版本中部署后无法加载vite 子应用</h2><ul>
+<li>检查 window.__dynamic_base__ 是否初始化成功<blockquote>
+<p>可以在index.html 页面用立即执行函数来初始化 __dynamic_base__ 变量</p>
+</blockquote>
+<p class="code-caption" data-lang="html" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p></li>
+</ul>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs html"><span class="hljs-tag">&lt;<span class="hljs-name">script</span>&gt;</span><span class="language-javascript"></span><br><span class="language-javascript">  (<span class="hljs-keyword">function</span>(<span class="hljs-params"></span>) &#123;</span><br><span class="language-javascript">    <span class="hljs-variable language_">window</span>.<span class="hljs-property">__dynamic_base__</span> = <span class="hljs-variable language_">window</span>.<span class="hljs-property">rawWindow__dynamic_base__</span> </span><br><span class="language-javascript">  &#125;)()</span><br><span class="language-javascript"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>检查基座是否开启vite 子应用的预加载<blockquote>
+<p>基座应用加载 vite-vue 子应用时使用了预加载模式，预加载时，子应用的index.html 引用的js 文件&amp;&amp; css 文件地址会直接设置未相对地址，基座中关闭vite 子应用的预加载即可</p>
+</blockquote>
+</li>
+</ul>
+<h2 id="父子资源样式相互污染"><a href="#父子资源样式相互污染" class="headerlink" title="父子资源样式相互污染"></a>父子资源样式相互污染</h2><ul>
+<li>如果基座样式库使用 elment-plus(2.2.0版本及以上) 可以通过自定义命名空间规避污染</li>
+<li>开启沙盒模式进行样式隔离</li>
+</ul>
+<h2 id="iframe-沙箱下-vite-子应用的接口请求总是-cors-error"><a href="#iframe-沙箱下-vite-子应用的接口请求总是-cors-error" class="headerlink" title="iframe 沙箱下 vite 子应用的接口请求总是 cors-error"></a>iframe 沙箱下 vite 子应用的接口请求总是 cors-error</h2><p><img src="/img/micro-app/cors-error.png" srcset="/img/loading.gif" lazyload></p>
+<p>原因可能在 <a target="_blank" rel="noopener" href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS/Errors/CORSNotSupportingCredentials">MDN COROS policy</a></p>
+<ol>
+<li>vite 子应用 axios withCredentials 设置为false</li>
+<li>baseUrl 建议设置和父级同层的URL</li>
+</ol>
+<p class="code-caption" data-lang="ts" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs ts"><span class="hljs-keyword">const</span> basepath = <span class="hljs-string">&#x27;/xxxx&#x27;</span><br><span class="hljs-keyword">const</span> http = axios.<span class="hljs-title function_">create</span>(&#123;<br>  <span class="hljs-attr">baseURL</span>: <span class="hljs-variable language_">window</span>.<span class="hljs-property">__MICRO_APP_ENVIRONMENT__</span> ? <span class="hljs-variable language_">window</span>.<span class="hljs-property">location</span>.<span class="hljs-property">origin</span> + basepath :  basepath,<br>  <span class="hljs-attr">withCredentials</span>: !<span class="hljs-variable language_">window</span>.<span class="hljs-property">__MICRO_APP_ENVIRONMENT__</span>,<br>&#125;)<br></code></pre></td></tr></table></figure>
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/%E5%BE%AE%E5%89%8D%E7%AB%AF/" class="category-chain-item">微前端</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/vue/" class="print-no-link">#vue</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>micro-app 搭建记录</div>
+      <div>http://example.com/2023/09/06/micro-web/micro-app/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2023年9月6日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="../../../07/micro-web/micro-app_01/" title="micro-app 基座应用和子应用共享window 全局变量">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">micro-app 基座应用和子应用共享window 全局变量</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../../../2020/10/26/algorithm/queue/" title="JS 实现队列">
+                        <span class="hidden-mobile">JS 实现队列</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
