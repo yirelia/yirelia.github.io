@@ -1,0 +1,1115 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="深入 Vite Mock 系统：从插件原理到生产级实践 本文从 Vite 插件机制的底层原理出发，逐步构建一个零依赖、生产级的 Mock 服务器插件。涵盖 Vite Dev Server 中间件、Proxy Bypass 机制、JSON 热更新、baseURL 前缀剥离等核心知识点，并附完整可运行的 Demo。  一、为什么需要 Mock？前后端并行开发是现代 Web 项目的常态。后端 API 未">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深入 Vite Mock 系统：从插件原理到生产级实践">
+<meta property="og:url" content="http://example.com/2026/04/05/frontend-big-data/vite-mock-deep-dive/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="深入 Vite Mock 系统：从插件原理到生产级实践 本文从 Vite 插件机制的底层原理出发，逐步构建一个零依赖、生产级的 Mock 服务器插件。涵盖 Vite Dev Server 中间件、Proxy Bypass 机制、JSON 热更新、baseURL 前缀剥离等核心知识点，并附完整可运行的 Demo。  一、为什么需要 Mock？前后端并行开发是现代 Web 项目的常态。后端 API 未">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-05T15:30:00.000Z">
+<meta property="article:modified_time" content="2026-04-05T15:00:17.371Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="vite">
+<meta property="article:tag" content="mock">
+<meta property="article:tag" content="vue3">
+<meta property="article:tag" content="typescript">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>深入 Vite Mock 系统：从插件原理到生产级实践 - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="深入 Vite Mock 系统：从插件原理到生产级实践"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-04-05 23:30" pubdate>
+          2026年4月5日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          7.2k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          60 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">深入 Vite Mock 系统：从插件原理到生产级实践</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="深入-Vite-Mock-系统：从插件原理到生产级实践"><a href="#深入-Vite-Mock-系统：从插件原理到生产级实践" class="headerlink" title="深入 Vite Mock 系统：从插件原理到生产级实践"></a>深入 Vite Mock 系统：从插件原理到生产级实践</h1><blockquote>
+<p>本文从 Vite 插件机制的底层原理出发，逐步构建一个零依赖、生产级的 Mock 服务器插件。涵盖 Vite Dev Server 中间件、Proxy Bypass 机制、JSON 热更新、baseURL 前缀剥离等核心知识点，并附完整可运行的 Demo。</p>
+</blockquote>
+<h2 id="一、为什么需要-Mock？"><a href="#一、为什么需要-Mock？" class="headerlink" title="一、为什么需要 Mock？"></a>一、为什么需要 Mock？</h2><p>前后端并行开发是现代 Web 项目的常态。后端 API 未就绪时，前端有三种策略：</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>代码内 <code>if/else</code> 硬编码假数据</td>
+<td>简单直接</td>
+<td>侵入业务代码，容易遗留到生产</td>
+</tr>
+<tr>
+<td>第三方 Mock 平台（Apifox&#x2F;Yapi）</td>
+<td>团队协作友好</td>
+<td>需要网络，本地开发依赖外部服务</td>
+</tr>
+<tr>
+<td><strong>Dev Server 层拦截</strong></td>
+<td>零侵入、离线可用、与真实请求链路一致</td>
+<td>需要自建插件</td>
+</tr>
+</tbody></table>
+<p>第三种方案是最理想的：Mock 逻辑运行在 Vite Dev Server 的 Node 进程中，不修改任何业务代码，不进入打包产物，环境变量一关就切回真实后端。</p>
+<p>本文要实现的就是这种方案。</p>
+<hr>
+<h2 id="二、Vite-插件机制速览"><a href="#二、Vite-插件机制速览" class="headerlink" title="二、Vite 插件机制速览"></a>二、Vite 插件机制速览</h2><p>在动手写 Mock 插件之前，需要理解 Vite 插件的三个关键生命周期钩子。</p>
+<h3 id="2-1-Vite-插件的本质"><a href="#2-1-Vite-插件的本质" class="headerlink" title="2.1 Vite 插件的本质"></a>2.1 Vite 插件的本质</h3><p>Vite 插件是一个返回特定结构对象的函数，兼容 Rollup 插件接口并扩展了若干 Vite 专有钩子：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">Plugin</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite&#x27;</span>;<br><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">myPlugin</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">Plugin</span> &#123;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;my-plugin&#x27;</span>,  <span class="hljs-comment">// 必须，唯一标识</span><br><br>    <span class="hljs-comment">// ① Rollup 通用钩子（构建时、开发时都会执行）</span><br>    <span class="hljs-comment">// resolveId, load, transform ...</span><br><br>    <span class="hljs-comment">// ② Vite 专有钩子（仅开发/构建特定阶段执行）</span><br>    <span class="hljs-title function_">config</span>(<span class="hljs-params"></span>)           &#123;&#125;,  <span class="hljs-comment">// 修改 Vite 配置</span><br>    <span class="hljs-title function_">configResolved</span>(<span class="hljs-params"></span>)   &#123;&#125;,  <span class="hljs-comment">// 配置确认后</span><br>    <span class="hljs-title function_">configureServer</span>(<span class="hljs-params"></span>)  &#123;&#125;,  <span class="hljs-comment">// 操作 dev server</span><br>    <span class="hljs-title function_">transformIndexHtml</span>(<span class="hljs-params"></span>)&#123;&#125;,  <span class="hljs-comment">// 修改 HTML</span><br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="2-2-与-Mock-相关的三个钩子"><a href="#2-2-与-Mock-相关的三个钩子" class="headerlink" title="2.2 与 Mock 相关的三个钩子"></a>2.2 与 Mock 相关的三个钩子</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight scss"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs scss">Vite 启动流程<br>    │<br>    ▼<br>┌─────────────────────────────────┐<br>│ <span class="hljs-built_in">config</span>(config)                  │  ← ① 修改配置（注入 proxy bypass）<br>│ 可以读取和修改原始 Vite 配置      │<br>└──────────┬──────────────────────┘<br>           │<br>           ▼<br>┌─────────────────────────────────┐<br>│ <span class="hljs-built_in">configResolved</span>(resolvedConfig)  │  ← 配置冻结，只读<br>└──────────┬──────────────────────┘<br>           │<br>           ▼<br>┌─────────────────────────────────┐<br>│ <span class="hljs-built_in">configureServer</span>(server)         │  ← ② 注册中间件（拦截请求）<br>│ server<span class="hljs-selector-class">.middlewares</span><span class="hljs-selector-class">.use</span>(fn)      │<br>└──────────┬──────────────────────┘<br>           │<br>           ▼<br>    Dev Server 启动<br></code></pre></td></tr></table></figure>
+
+<p><strong>config()</strong> – 在配置合并前调用，可以修改 proxy 规则。我们用它给现有 proxy 注入 <code>bypass</code> 函数。</p>
+<p><strong>configureServer()</strong> – 拿到 <code>ViteDevServer</code> 实例，通过 <code>server.middlewares.use()</code> 注册 Connect 中间件。这是 Mock 拦截的核心入口。</p>
+<hr>
+<h2 id="三、Vite-Dev-Server-请求链路"><a href="#三、Vite-Dev-Server-请求链路" class="headerlink" title="三、Vite Dev Server 请求链路"></a>三、Vite Dev Server 请求链路</h2><p>理解请求在 Dev Server 内部的流转顺序，是写 Mock 插件的前提。</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs pgsql">浏览器发起请求 <span class="hljs-keyword">GET</span> /api-cosim/<span class="hljs-keyword">admin</span>-api/<span class="hljs-keyword">system</span>/tenant/list<br>    │<br>    ▼<br>┌──────────────────────────────────────────────┐<br>│ Vite Dev <span class="hljs-keyword">Server</span> (基于 <span class="hljs-keyword">Connect</span>)               │<br>│                                              │<br>│  <span class="hljs-number">1.</span> 内置中间件（静态资源、HMR websocket）      │<br>│       │                                      │<br>│  <span class="hljs-number">2.</span> 用户中间件（configureServer 注册的）       │<br>│       │  ← Mock 插件在这里拦截                │<br>│       │  如果匹配 → 直接返回 <span class="hljs-type">JSON</span>，结束        │<br>│       │  如果不匹配 → next()                  │<br>│       │                                      │<br>│  <span class="hljs-number">3.</span> Vite Proxy（http-proxy-middleware）       │<br>│       │  ← 如果 bypass 返回值，跳过代理        │<br>│       │  否则转发到 target 后端                │<br>│       │                                      │<br>│  <span class="hljs-number">4.</span> Vite 模块转换（.vue, .ts → JS）          │<br>│       │                                      │<br>│  <span class="hljs-number">5.</span> <span class="hljs-number">404</span> 兜底                                 │<br>└──────────────────────────────────────────────┘<br></code></pre></td></tr></table></figure>
+
+<p><strong>关键认知</strong>：Vite Proxy（<code>http-proxy-middleware</code>）在中间件链中的优先级 <strong>高于</strong> <code>configureServer</code> 注册的用户中间件。也就是说，如果 proxy 规则匹配了请求路径，请求会被直接转发到后端，根本不会到达 Mock 中间件。</p>
+<p>这就是为什么仅靠 <code>configureServer</code> 注册中间件是不够的 – 我们还需要在 <code>config()</code> 钩子中给 proxy 规则注入 <code>bypass</code>，让匹配 Mock 的请求跳过代理。</p>
+<hr>
+<h2 id="四、Proxy-Bypass-机制详解"><a href="#四、Proxy-Bypass-机制详解" class="headerlink" title="四、Proxy Bypass 机制详解"></a>四、Proxy Bypass 机制详解</h2><h3 id="4-1-什么是-bypass？"><a href="#4-1-什么是-bypass？" class="headerlink" title="4.1 什么是 bypass？"></a>4.1 什么是 bypass？</h3><p>Vite 的 proxy 配置底层使用 <code>http-proxy-middleware</code>，它支持一个 <code>bypass</code> 函数：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// vite.config.ts</span><br><span class="hljs-attr">server</span>: &#123;<br>  <span class="hljs-attr">proxy</span>: &#123;<br>    <span class="hljs-string">&#x27;^/api-*&#x27;</span>: &#123;<br>      <span class="hljs-attr">target</span>: <span class="hljs-string">&#x27;http://backend:8001&#x27;</span>,<br>      <span class="hljs-attr">changeOrigin</span>: <span class="hljs-literal">true</span>,<br>      <span class="hljs-comment">// bypass: 如果返回字符串，跳过代理，当作本地路径处理</span><br>      <span class="hljs-comment">// bypass: 如果返回 false/undefined，正常代理</span><br>      <span class="hljs-title function_">bypass</span>(<span class="hljs-params">req, res, proxyOptions</span>) &#123;<br>        <span class="hljs-keyword">if</span> (<span class="hljs-title function_">shouldMock</span>(req.<span class="hljs-property">url</span>)) &#123;<br>          <span class="hljs-keyword">return</span> req.<span class="hljs-property">url</span>;  <span class="hljs-comment">// 返回字符串 → 跳过代理</span><br>        &#125;<br>        <span class="hljs-comment">// 返回 undefined → 正常代理到 target</span><br>      &#125;<br>    &#125;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="4-2-bypass-的执行时机"><a href="#4-2-bypass-的执行时机" class="headerlink" title="4.2 bypass 的执行时机"></a>4.2 bypass 的执行时机</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs cmake">请求进入 proxy 中间件<br>    │<br>    ▼<br>  有 bypass 函数？ ──否──→ 直接代理到 <span class="hljs-keyword">target</span><br>    │<br>    是<br>    ▼<br>  执行 bypass(req, res, options)<br>    │<br>    ├─ 返回 <span class="hljs-keyword">string</span> → 跳过代理，请求继续传递给下一个中间件<br>    ├─ 返回 <span class="hljs-keyword">false</span>  → 返回 <span class="hljs-number">404</span><br>    └─ 返回 undefined → 正常代理到 <span class="hljs-keyword">target</span><br></code></pre></td></tr></table></figure>
+
+<p>返回 <code>req.url</code>（字符串）的效果是：这个请求不走代理，而是继续沿着 Connect 中间件链往下传递。这样我们的 Mock 中间件就有机会拦截它了。</p>
+<h3 id="4-3-为什么不直接把-Mock-中间件放在-proxy-前面？"><a href="#4-3-为什么不直接把-Mock-中间件放在-proxy-前面？" class="headerlink" title="4.3 为什么不直接把 Mock 中间件放在 proxy 前面？"></a>4.3 为什么不直接把 Mock 中间件放在 proxy 前面？</h3><p><code>configureServer</code> 注册的中间件默认插在 Vite 内部中间件 <strong>之后</strong>。虽然可以通过返回一个函数来实现”后置”中间件，但 proxy 的位置是由 Vite 内部控制的，不容易精确插队。</p>
+<p>用 <code>bypass</code> 是最稳妥的方案：在 proxy 决策阶段就告诉它”这个请求不用你管”。</p>
+<hr>
+<h2 id="五、从零实现-Mock-插件"><a href="#五、从零实现-Mock-插件" class="headerlink" title="五、从零实现 Mock 插件"></a>五、从零实现 Mock 插件</h2><h3 id="5-1-整体架构"><a href="#5-1-整体架构" class="headerlink" title="5.1 整体架构"></a>5.1 整体架构</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight oxygene"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs oxygene">createMockPlugin(options)<br>    │<br>    ├── config() 钩子<br>    │     ├── 加载所有 Mock 条目（JSON + TS）<br>    │     ├── 收集 mock URL 集合<br>    │     └── 给每条 proxy 规则注入 bypass<br>    │<br>    └── configureServer() 钩子<br>          ├── 加载 JSON Mock 数据<br>          ├── 启动文件监听（热更新）<br>          └── 注册 Connect 中间件<br>                ├── 解析请求（URL、<span class="hljs-keyword">method</span>、<span class="hljs-title function_">query</span>、<span class="hljs-title function_">body</span>、<span class="hljs-title function_">headers</span>）<br>                ├── 匹配 <span class="hljs-title function_">Mock</span> 条目（剥离 <span class="hljs-title function_">baseURL</span> 前缀）<br>                ├── 模拟延迟<br>                └── 返回 <span class="hljs-title function_">JSON</span> 响应<br></code></pre></td></tr></table></figure>
+
+<h3 id="5-2-类型定义"><a href="#5-2-类型定义" class="headerlink" title="5.2 类型定义"></a>5.2 类型定义</h3><p>先定义核心类型，这是整个系统的契约：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// ── 基础类型 ──</span><br><br><span class="hljs-keyword">type</span> <span class="hljs-title class_">MockMethod</span> = <span class="hljs-string">&#x27;get&#x27;</span> | <span class="hljs-string">&#x27;post&#x27;</span> | <span class="hljs-string">&#x27;put&#x27;</span> | <span class="hljs-string">&#x27;delete&#x27;</span>;<br><br><span class="hljs-comment">/** handler 接收的请求信息 */</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockRequestOptions</span> &#123;<br>  <span class="hljs-attr">query</span>: <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;;    <span class="hljs-comment">// URL ?key=value</span><br>  <span class="hljs-attr">body</span>: <span class="hljs-built_in">unknown</span>;                    <span class="hljs-comment">// POST/PUT 请求体</span><br>  <span class="hljs-attr">headers</span>: <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;;  <span class="hljs-comment">// 请求头</span><br>&#125;<br><br><span class="hljs-comment">/** 响应体，与后端 RESP&lt;T&gt; 对齐 */</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockResponse</span>&lt;T = <span class="hljs-built_in">unknown</span>&gt; &#123;<br>  <span class="hljs-attr">code</span>: <span class="hljs-built_in">number</span>;       <span class="hljs-comment">// 业务状态码（0=成功，401=未授权，503=不可用...）</span><br>  <span class="hljs-attr">data</span>: T | <span class="hljs-literal">null</span>;     <span class="hljs-comment">// 业务数据，错误时为 null</span><br>  <span class="hljs-attr">msg</span>: <span class="hljs-built_in">string</span>;        <span class="hljs-comment">// 消息</span><br>  <span class="hljs-attr">message</span>: <span class="hljs-built_in">string</span>;    <span class="hljs-comment">// 消息（兼容字段）</span><br>&#125;<br><br><span class="hljs-comment">// ── 两种数据源 ──</span><br><br><span class="hljs-comment">/** JSON 文件格式 */</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockJsonFile</span> &#123;<br>  <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">method</span>: <span class="hljs-title class_">MockMethod</span>;<br>  <span class="hljs-attr">timeout</span>?: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">response</span>: <span class="hljs-title class_">MockResponse</span>;<br>&#125;<br><br><span class="hljs-comment">/** TS handler 定义（支持条件逻辑） */</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockHandler</span> &#123;<br>  <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">method</span>: <span class="hljs-title class_">MockMethod</span>;<br>  <span class="hljs-attr">timeout</span>?: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">handler</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">options</span>: <span class="hljs-title class_">MockRequestOptions</span></span>) =&gt;</span> <span class="hljs-title class_">MockResponse</span>;<br>&#125;<br><br><span class="hljs-comment">/** 内部统一条目 */</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockEntry</span> &#123;<br>  <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">method</span>: <span class="hljs-title class_">MockMethod</span>;<br>  <span class="hljs-attr">timeout</span>: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">resolve</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">options</span>: <span class="hljs-title class_">MockRequestOptions</span></span>) =&gt;</span> <span class="hljs-title class_">MockResponse</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><strong>设计要点</strong>：</p>
+<ul>
+<li><code>MockJsonFile</code> 和 <code>MockHandler</code> 是两种外部输入格式</li>
+<li><code>MockEntry</code> 是内部统一的处理格式，两种来源都转换成它</li>
+<li><code>MockResponse</code> 的 <code>data</code> 类型是 <code>T | null</code>，比后端的 <code>RESP&lt;T&gt;</code> 更真实（错误时后端确实返回 <code>null</code>）</li>
+</ul>
+<h3 id="5-3-响应工具函数"><a href="#5-3-响应工具函数" class="headerlink" title="5.3 响应工具函数"></a>5.3 响应工具函数</h3><p>给 TS handler 提供便捷的响应构造函数：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">function</span> resultSuccess&lt;T&gt;(<span class="hljs-attr">data</span>: T, msg = <span class="hljs-string">&#x27;success&#x27;</span>): <span class="hljs-title class_">MockResponse</span>&lt;T&gt; &#123;<br>  <span class="hljs-keyword">return</span> &#123; <span class="hljs-attr">code</span>: <span class="hljs-number">0</span>, data, msg, <span class="hljs-attr">message</span>: msg &#125;;<br>&#125;<br><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">resultError</span>(<span class="hljs-params"><span class="hljs-attr">msg</span>: <span class="hljs-built_in">string</span>, code = <span class="hljs-number">500</span></span>): <span class="hljs-title class_">MockResponse</span>&lt;<span class="hljs-literal">null</span>&gt; &#123;<br>  <span class="hljs-keyword">return</span> &#123; code, <span class="hljs-attr">data</span>: <span class="hljs-literal">null</span>, msg, <span class="hljs-attr">message</span>: msg &#125;;<br>&#125;<br><br><span class="hljs-keyword">function</span> resultPageSuccess&lt;T&gt;(<br>  <span class="hljs-attr">list</span>: T[],<br>  <span class="hljs-attr">options</span>: &#123; <span class="hljs-attr">page</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-attr">size</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-attr">total</span>?: <span class="hljs-built_in">number</span> &#125;<br>): <span class="hljs-title class_">MockResponse</span>&lt;&#123;<br>  <span class="hljs-attr">list</span>: T[];<br>  <span class="hljs-attr">number</span>: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">size</span>: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">totalElements</span>: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">totalPages</span>: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">numberOfElements</span>: <span class="hljs-built_in">number</span>;<br>&#125;&gt; &#123;<br>  <span class="hljs-keyword">const</span> page = options.<span class="hljs-property">page</span> ?? <span class="hljs-number">1</span>;<br>  <span class="hljs-keyword">const</span> size = options.<span class="hljs-property">size</span> ?? <span class="hljs-number">10</span>;<br>  <span class="hljs-keyword">const</span> total = options.<span class="hljs-property">total</span> ?? list.<span class="hljs-property">length</span>;<br>  <span class="hljs-keyword">return</span> <span class="hljs-title function_">resultSuccess</span>(&#123;<br>    list,<br>    <span class="hljs-attr">number</span>: page,<br>    size,<br>    <span class="hljs-attr">totalElements</span>: total,<br>    <span class="hljs-attr">totalPages</span>: <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">ceil</span>(total / size),<br>    <span class="hljs-attr">numberOfElements</span>: list.<span class="hljs-property">length</span><br>  &#125;);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>为什么需要 <code>resultPageSuccess</code>？因为后端分页接口有固定结构（<code>list + number + size + totalElements + totalPages</code>），每次手写容易遗漏字段。</p>
+<h3 id="5-4-JSON-自动扫描"><a href="#5-4-JSON-自动扫描" class="headerlink" title="5.4 JSON 自动扫描"></a>5.4 JSON 自动扫描</h3><p>这是 Mock 系统的核心能力之一：扫描 <code>mock/data/</code> 目录下所有 <code>.json</code> 文件，自动注册为 Mock 接口。</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> &#123; readdirSync, readFileSync, lstatSync &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;fs&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; join &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;path&#x27;</span>;<br><br><span class="hljs-comment">/** 递归收集目录下所有 .json 文件路径 */</span><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">collectJsonFiles</span>(<span class="hljs-params"><span class="hljs-attr">dir</span>: <span class="hljs-built_in">string</span></span>): <span class="hljs-built_in">string</span>[] &#123;<br>  <span class="hljs-keyword">const</span> <span class="hljs-attr">results</span>: <span class="hljs-built_in">string</span>[] = [];<br>  <span class="hljs-keyword">try</span> &#123;<br>    <span class="hljs-keyword">const</span> entries = <span class="hljs-title function_">readdirSync</span>(dir);<br>    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> entry <span class="hljs-keyword">of</span> entries) &#123;<br>      <span class="hljs-keyword">const</span> fullPath = <span class="hljs-title function_">join</span>(dir, entry);<br>      <span class="hljs-keyword">const</span> stat = <span class="hljs-title function_">lstatSync</span>(fullPath);  <span class="hljs-comment">// 注意：lstatSync 不跟随 symlink</span><br>      <span class="hljs-keyword">if</span> (stat.<span class="hljs-title function_">isSymbolicLink</span>()) <span class="hljs-keyword">continue</span>;  <span class="hljs-comment">// 安全：跳过符号链接</span><br>      <span class="hljs-keyword">if</span> (stat.<span class="hljs-title function_">isDirectory</span>()) &#123;<br>        results.<span class="hljs-title function_">push</span>(...<span class="hljs-title function_">collectJsonFiles</span>(fullPath));  <span class="hljs-comment">// 递归子目录</span><br>      &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (entry.<span class="hljs-title function_">endsWith</span>(<span class="hljs-string">&#x27;.json&#x27;</span>)) &#123;<br>        results.<span class="hljs-title function_">push</span>(fullPath);<br>      &#125;<br>    &#125;<br>  &#125; <span class="hljs-keyword">catch</span> &#123;<br>    <span class="hljs-comment">// data 目录不存在时静默跳过</span><br>  &#125;<br>  <span class="hljs-keyword">return</span> results;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><strong>安全措施</strong>：使用 <code>lstatSync</code> 而非 <code>statSync</code>。区别在于 <code>lstatSync</code> 不跟随符号链接，可以检测到 symlink 并跳过，防止路径穿越攻击（比如有人创建了一个 symlink 指向 <code>/etc/passwd</code>）。</p>
+<h3 id="5-5-JSON-文件加载与校验"><a href="#5-5-JSON-文件加载与校验" class="headerlink" title="5.5 JSON 文件加载与校验"></a>5.5 JSON 文件加载与校验</h3><p>每个 JSON 文件加载后需要严格校验：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">const</span> <span class="hljs-variable constant_">VALID_METHODS</span> = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Set</span>&lt;<span class="hljs-built_in">string</span>&gt;([<span class="hljs-string">&#x27;get&#x27;</span>, <span class="hljs-string">&#x27;post&#x27;</span>, <span class="hljs-string">&#x27;put&#x27;</span>, <span class="hljs-string">&#x27;delete&#x27;</span>]);<br><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">loadJsonMock</span>(<span class="hljs-params"><span class="hljs-attr">filePath</span>: <span class="hljs-built_in">string</span></span>): <span class="hljs-title class_">MockEntry</span> | <span class="hljs-literal">null</span> &#123;<br>  <span class="hljs-keyword">try</span> &#123;<br>    <span class="hljs-keyword">const</span> raw = <span class="hljs-title function_">readFileSync</span>(filePath, <span class="hljs-string">&#x27;utf-8&#x27;</span>);<br>    <span class="hljs-keyword">const</span> <span class="hljs-attr">json</span>: <span class="hljs-title class_">MockJsonFile</span> = <span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">parse</span>(raw);<br><br>    <span class="hljs-comment">// 校验 1：必填字段</span><br>    <span class="hljs-keyword">if</span> (!json.<span class="hljs-property">url</span> || !json.<span class="hljs-property">method</span> || !json.<span class="hljs-property">response</span>) &#123;<br>      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">`[mock] 跳过格式不完整的文件: <span class="hljs-subst">$&#123;filePath&#125;</span>`</span>);<br>      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;<br>    &#125;<br><br>    <span class="hljs-comment">// 校验 2：method 白名单</span><br>    <span class="hljs-keyword">const</span> method = json.<span class="hljs-property">method</span>.<span class="hljs-title function_">toLowerCase</span>();<br>    <span class="hljs-keyword">if</span> (!<span class="hljs-variable constant_">VALID_METHODS</span>.<span class="hljs-title function_">has</span>(method)) &#123;<br>      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">`[mock] 无效的 method &quot;<span class="hljs-subst">$&#123;json.method&#125;</span>&quot;: <span class="hljs-subst">$&#123;filePath&#125;</span>`</span>);<br>      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;<br>    &#125;<br><br>    <span class="hljs-comment">// 校验 3：response 结构</span><br>    <span class="hljs-keyword">if</span> (json.<span class="hljs-property">response</span>.<span class="hljs-property">code</span> === <span class="hljs-literal">undefined</span> || json.<span class="hljs-property">response</span>.<span class="hljs-property">msg</span> === <span class="hljs-literal">undefined</span>) &#123;<br>      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">`[mock] response 缺少 code/msg 字段: <span class="hljs-subst">$&#123;filePath&#125;</span>`</span>);<br>      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;<br>    &#125;<br><br>    <span class="hljs-comment">// 转换为统一的 MockEntry</span><br>    <span class="hljs-keyword">return</span> &#123;<br>      <span class="hljs-attr">url</span>: json.<span class="hljs-property">url</span>,<br>      <span class="hljs-attr">method</span>: method <span class="hljs-keyword">as</span> <span class="hljs-title class_">MockMethod</span>,<br>      <span class="hljs-attr">timeout</span>: json.<span class="hljs-property">timeout</span> ?? <span class="hljs-number">200</span>,<br>      <span class="hljs-attr">resolve</span>: <span class="hljs-function">() =&gt;</span> json.<span class="hljs-property">response</span>   <span class="hljs-comment">// JSON 是静态数据，resolve 直接返回</span><br>    &#125;;<br>  &#125; <span class="hljs-keyword">catch</span> (e) &#123;<br>    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">`[mock] JSON 解析失败: <span class="hljs-subst">$&#123;filePath&#125;</span>`</span>, e);<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><strong>设计哲学</strong>：宽进严出。文件扫描不报错（目录不存在就跳过），但文件内容必须严格校验。不合格的文件跳过并输出明确的警告信息，方便开发者排查。</p>
+<h3 id="5-6-请求解析"><a href="#5-6-请求解析" class="headerlink" title="5.6 请求解析"></a>5.6 请求解析</h3><p>Connect 中间件接收的是 Node.js 原生的 <code>IncomingMessage</code>，需要手动解析：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">IncomingMessage</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;http&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; parse <span class="hljs-keyword">as</span> parseUrl &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;url&#x27;</span>;<br><br><span class="hljs-comment">/** 解析请求体（POST/PUT） */</span><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">parseRequestBody</span>(<span class="hljs-params"><span class="hljs-attr">req</span>: <span class="hljs-title class_">IncomingMessage</span></span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">unknown</span>&gt; &#123;<br>  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Promise</span>(<span class="hljs-function"><span class="hljs-params">resolve</span> =&gt;</span> &#123;<br>    <span class="hljs-keyword">const</span> <span class="hljs-attr">chunks</span>: <span class="hljs-title class_">Buffer</span>[] = [];<br>    req.<span class="hljs-title function_">on</span>(<span class="hljs-string">&#x27;data&#x27;</span>, <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">chunk</span>: <span class="hljs-title class_">Buffer</span></span>) =&gt;</span> chunks.<span class="hljs-title function_">push</span>(chunk));<br>    req.<span class="hljs-title function_">on</span>(<span class="hljs-string">&#x27;end&#x27;</span>, <span class="hljs-function">() =&gt;</span> &#123;<br>      <span class="hljs-keyword">const</span> raw = <span class="hljs-title class_">Buffer</span>.<span class="hljs-title function_">concat</span>(chunks).<span class="hljs-title function_">toString</span>(<span class="hljs-string">&#x27;utf-8&#x27;</span>);<br>      <span class="hljs-keyword">if</span> (!raw) &#123; <span class="hljs-title function_">resolve</span>(&#123;&#125;); <span class="hljs-keyword">return</span>; &#125;<br>      <span class="hljs-keyword">try</span> &#123;<br>        <span class="hljs-title function_">resolve</span>(<span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">parse</span>(raw));    <span class="hljs-comment">// 尝试 JSON 解析</span><br>      &#125; <span class="hljs-keyword">catch</span> &#123;<br>        <span class="hljs-title function_">resolve</span>(raw);                <span class="hljs-comment">// 非 JSON 返回原始字符串</span><br>      &#125;<br>    &#125;);<br>    req.<span class="hljs-title function_">on</span>(<span class="hljs-string">&#x27;error&#x27;</span>, <span class="hljs-function">() =&gt;</span> <span class="hljs-title function_">resolve</span>(&#123;&#125;));  <span class="hljs-comment">// 出错不崩溃</span><br>  &#125;);<br>&#125;<br><br><span class="hljs-comment">/** 解析完整请求信息 */</span><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">parseMockRequest</span>(<span class="hljs-params"><span class="hljs-attr">req</span>: <span class="hljs-title class_">IncomingMessage</span></span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-title class_">MockRequestOptions</span>&gt; &#123;<br>  <span class="hljs-keyword">const</span> parsed = <span class="hljs-title function_">parseUrl</span>(req.<span class="hljs-property">url</span> ?? <span class="hljs-string">&#x27;&#x27;</span>, <span class="hljs-literal">true</span>);<br><br>  <span class="hljs-comment">// 解析 query 参数</span><br>  <span class="hljs-keyword">const</span> <span class="hljs-attr">query</span>: <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt; = &#123;&#125;;<br>  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> [key, val] <span class="hljs-keyword">of</span> <span class="hljs-title class_">Object</span>.<span class="hljs-title function_">entries</span>(parsed.<span class="hljs-property">query</span>)) &#123;<br>    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> val === <span class="hljs-string">&#x27;string&#x27;</span>) &#123;<br>      query[key] = val;<br>    &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-title class_">Array</span>.<span class="hljs-title function_">isArray</span>(val) &amp;&amp; val.<span class="hljs-property">length</span> &gt; <span class="hljs-number">0</span>) &#123;<br>      query[key] = val[<span class="hljs-number">0</span>] ?? <span class="hljs-string">&#x27;&#x27;</span>;     <span class="hljs-comment">// 数组参数取第一个</span><br>    &#125;<br>  &#125;<br><br>  <span class="hljs-comment">// 解析 headers</span><br>  <span class="hljs-keyword">const</span> <span class="hljs-attr">headers</span>: <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt; = &#123;&#125;;<br>  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> [key, val] <span class="hljs-keyword">of</span> <span class="hljs-title class_">Object</span>.<span class="hljs-title function_">entries</span>(req.<span class="hljs-property">headers</span>)) &#123;<br>    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> val === <span class="hljs-string">&#x27;string&#x27;</span>) &#123;<br>      headers[key] = val;            <span class="hljs-comment">// 只保留 string 类型</span><br>    &#125;<br>  &#125;<br><br>  <span class="hljs-keyword">return</span> <span class="hljs-title function_">parseRequestBody</span>(req).<span class="hljs-title function_">then</span>(<span class="hljs-function"><span class="hljs-params">body</span> =&gt;</span> (&#123; query, body, headers &#125;));<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>为什么要手动解析而不用 <code>body-parser</code>？因为 Mock 插件追求零依赖。Vite 插件运行在 Node 端，引入额外的 npm 包会增加安装体积。Node 原生 API 完全够用。</p>
+<h3 id="5-7-URL-匹配与-baseURL-剥离"><a href="#5-7-URL-匹配与-baseURL-剥离" class="headerlink" title="5.7 URL 匹配与 baseURL 剥离"></a>5.7 URL 匹配与 baseURL 剥离</h3><p>这是最容易踩坑的地方。在实际项目中，axios 通常配置了 <code>baseURL</code>：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// cloud/src/utils/http.ts</span><br><span class="hljs-keyword">const</span> http = axios.<span class="hljs-title function_">create</span>(&#123;<br>  <span class="hljs-attr">baseURL</span>: <span class="hljs-keyword">import</span>.<span class="hljs-property">meta</span>.<span class="hljs-property">env</span>.<span class="hljs-property">VITE_APP_BASE_URL</span>,  <span class="hljs-comment">// &#x27;/api-cosim&#x27;</span><br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<p>这意味着所有 API 请求都会被加上前缀：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs pgsql">代码中调用：http.<span class="hljs-keyword">get</span>(<span class="hljs-string">&#x27;/admin-api/system/tenant/list&#x27;</span>)<br>实际发出请求：<span class="hljs-keyword">GET</span> /api-cosim/<span class="hljs-keyword">admin</span>-api/<span class="hljs-keyword">system</span>/tenant/list<br></code></pre></td></tr></table></figure>
+
+<p>但 Mock JSON 文件中注册的 URL 是不带前缀的：</p>
+<p class="code-caption" data-lang="json" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-punctuation">&#123;</span> <span class="hljs-attr">&quot;url&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;/admin-api/system/tenant/list&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;method&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;get&quot;</span><span class="hljs-punctuation">,</span> ... <span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+
+<p>如果直接用请求路径去匹配，永远匹配不上。解决方案是在匹配前剥离 baseURL 前缀：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">matchMock</span>(<span class="hljs-params"></span><br><span class="hljs-params">  <span class="hljs-attr">entries</span>: <span class="hljs-title class_">MockEntry</span>[],</span><br><span class="hljs-params">  <span class="hljs-attr">method</span>: <span class="hljs-built_in">string</span>,</span><br><span class="hljs-params">  <span class="hljs-attr">pathname</span>: <span class="hljs-built_in">string</span>,</span><br><span class="hljs-params">  baseURL = <span class="hljs-string">&#x27;&#x27;</span></span><br><span class="hljs-params"></span>): <span class="hljs-title class_">MockEntry</span> | <span class="hljs-literal">undefined</span> &#123;<br>  <span class="hljs-keyword">const</span> lowerMethod = method.<span class="hljs-title function_">toLowerCase</span>();<br>  <span class="hljs-comment">// 核心：剥离 baseURL 前缀</span><br>  <span class="hljs-keyword">const</span> stripped = baseURL &amp;&amp; pathname.<span class="hljs-title function_">startsWith</span>(baseURL)<br>    ? pathname.<span class="hljs-title function_">slice</span>(baseURL.<span class="hljs-property">length</span>)<br>    : pathname;<br>  <span class="hljs-keyword">return</span> entries.<span class="hljs-title function_">find</span>(<br>    <span class="hljs-function"><span class="hljs-params">item</span> =&gt;</span> item.<span class="hljs-property">method</span> === lowerMethod &amp;&amp; item.<span class="hljs-property">url</span> === stripped<br>  );<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>同样的逻辑也要应用在 proxy bypass 中：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-attr">bypass</span>: <span class="hljs-function">(<span class="hljs-params">req</span>) =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> pathname = req.<span class="hljs-property">url</span>?.<span class="hljs-title function_">split</span>(<span class="hljs-string">&#x27;?&#x27;</span>)[<span class="hljs-number">0</span>] ?? <span class="hljs-string">&#x27;&#x27;</span>;<br>  <span class="hljs-keyword">const</span> stripped = baseURL &amp;&amp; pathname.<span class="hljs-title function_">startsWith</span>(baseURL)<br>    ? pathname.<span class="hljs-title function_">slice</span>(baseURL.<span class="hljs-property">length</span>)<br>    : pathname;<br>  <span class="hljs-keyword">if</span> (mockUrls.<span class="hljs-title function_">has</span>(stripped)) &#123;<br>    <span class="hljs-keyword">return</span> req.<span class="hljs-property">url</span>;  <span class="hljs-comment">// 跳过代理</span><br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><strong>完整的请求匹配流程</strong>：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs pgsql">浏览器请求：<span class="hljs-keyword">GET</span> /api-cosim/<span class="hljs-keyword">admin</span>-api/<span class="hljs-keyword">system</span>/tenant/list<br>        │<br>        ▼<br>  Proxy 拦截（匹配 <span class="hljs-string">&#x27;^/api-*&#x27;</span>）<br>        │<br>        ▼<br>  执行 bypass(req)<br>        │ pathname = <span class="hljs-string">&#x27;/api-cosim/admin-api/system/tenant/list&#x27;</span><br>        │ stripped = <span class="hljs-string">&#x27;/admin-api/system/tenant/list&#x27;</span>  (剥离 /api-cosim)<br>        │ mockUrls.has(stripped) → <span class="hljs-keyword">true</span><br>        │<br>        ▼<br>  返回 req.url → 跳过代理<br>        │<br>        ▼<br>  Mock 中间件拦截<br>        │ matchMock(entries, <span class="hljs-string">&#x27;GET&#x27;</span>, pathname, <span class="hljs-string">&#x27;/api-cosim&#x27;</span>)<br>        │ stripped = <span class="hljs-string">&#x27;/admin-api/system/tenant/list&#x27;</span><br>        │ → 匹配成功<br>        │<br>        ▼<br>  返回 Mock <span class="hljs-type">JSON</span> 响应<br></code></pre></td></tr></table></figure>
+
+<h3 id="5-8-完整插件实现"><a href="#5-8-完整插件实现" class="headerlink" title="5.8 完整插件实现"></a>5.8 完整插件实现</h3><p>把前面所有部分组装起来：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">Plugin</span>, <span class="hljs-title class_">ViteDevServer</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite&#x27;</span>;<br><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">IncomingMessage</span>, <span class="hljs-title class_">ServerResponse</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;http&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; existsSync, watch &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;fs&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; join, resolve &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;path&#x27;</span>;<br><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">CreateMockOptions</span> &#123;<br>  <span class="hljs-attr">handlers</span>?: <span class="hljs-title class_">MockHandler</span>[];<br>  <span class="hljs-attr">baseURL</span>?: <span class="hljs-built_in">string</span>;<br>&#125;<br><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">createMockPlugin</span>(<span class="hljs-params"><span class="hljs-attr">options</span>: <span class="hljs-title class_">CreateMockOptions</span> = &#123;&#125;</span>): <span class="hljs-title class_">Plugin</span> &#123;<br>  <span class="hljs-keyword">const</span> mockDir = <span class="hljs-title function_">resolve</span>(__dirname);<br>  <span class="hljs-keyword">const</span> dataDir = <span class="hljs-title function_">join</span>(mockDir, <span class="hljs-string">&#x27;data&#x27;</span>);<br>  <span class="hljs-keyword">const</span> baseURL = options.<span class="hljs-property">baseURL</span> ?? <span class="hljs-string">&#x27;&#x27;</span>;<br><br>  <span class="hljs-comment">// TS handlers → MockEntry（优先级高于 JSON）</span><br>  <span class="hljs-keyword">const</span> handlerEntries = (options.<span class="hljs-property">handlers</span> ?? []).<span class="hljs-title function_">map</span>(handlerToEntry);<br><br>  <span class="hljs-comment">// JSON entries（可热更新）</span><br>  <span class="hljs-keyword">let</span> <span class="hljs-attr">jsonEntries</span>: <span class="hljs-title class_">MockEntry</span>[] = [];<br><br>  <span class="hljs-keyword">function</span> <span class="hljs-title function_">reloadJsonMocks</span>(<span class="hljs-params"></span>): <span class="hljs-built_in">void</span> &#123;<br>    jsonEntries = <span class="hljs-title function_">loadAllJsonMocks</span>(dataDir);<br>    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`[mock] 已加载 <span class="hljs-subst">$&#123;jsonEntries.length&#125;</span> 个 JSON mock`</span>);<br>  &#125;<br><br>  <span class="hljs-keyword">function</span> <span class="hljs-title function_">getAllEntries</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">MockEntry</span>[] &#123;<br>    <span class="hljs-comment">// TS handler 优先：相同 url+method 时覆盖 JSON</span><br>    <span class="hljs-keyword">const</span> merged = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-title class_">MockEntry</span>&gt;();<br>    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> entry <span class="hljs-keyword">of</span> jsonEntries) &#123;<br>      merged.<span class="hljs-title function_">set</span>(<span class="hljs-string">`<span class="hljs-subst">$&#123;entry.method&#125;</span>:<span class="hljs-subst">$&#123;entry.url&#125;</span>`</span>, entry);<br>    &#125;<br>    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> entry <span class="hljs-keyword">of</span> handlerEntries) &#123;<br>      merged.<span class="hljs-title function_">set</span>(<span class="hljs-string">`<span class="hljs-subst">$&#123;entry.method&#125;</span>:<span class="hljs-subst">$&#123;entry.url&#125;</span>`</span>, entry);<br>    &#125;<br>    <span class="hljs-keyword">return</span> <span class="hljs-title class_">Array</span>.<span class="hljs-title function_">from</span>(merged.<span class="hljs-title function_">values</span>());<br>  &#125;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;vite-plugin-mock-server&#x27;</span>,<br><br>    <span class="hljs-comment">// ① config 钩子：注入 proxy bypass</span><br>    <span class="hljs-title function_">config</span>(<span class="hljs-params">config</span>) &#123;<br>      <span class="hljs-title function_">reloadJsonMocks</span>();<br>      <span class="hljs-keyword">const</span> mockUrls = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Set</span>&lt;<span class="hljs-built_in">string</span>&gt;();<br>      <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> e <span class="hljs-keyword">of</span> <span class="hljs-title function_">getAllEntries</span>()) mockUrls.<span class="hljs-title function_">add</span>(e.<span class="hljs-property">url</span>);<br><br>      <span class="hljs-keyword">const</span> proxy = config.<span class="hljs-property">server</span>?.<span class="hljs-property">proxy</span>;<br>      <span class="hljs-keyword">if</span> (proxy &amp;&amp; <span class="hljs-keyword">typeof</span> proxy === <span class="hljs-string">&#x27;object&#x27;</span>) &#123;<br>        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> key <span class="hljs-keyword">of</span> <span class="hljs-title class_">Object</span>.<span class="hljs-title function_">keys</span>(proxy)) &#123;<br>          <span class="hljs-keyword">const</span> rule = proxy[key];<br>          <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> rule === <span class="hljs-string">&#x27;object&#x27;</span> &amp;&amp; rule !== <span class="hljs-literal">null</span>) &#123;<br>            (rule <span class="hljs-keyword">as</span> <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">unknown</span>&gt;).<span class="hljs-property">bypass</span> = <span class="hljs-function">(<span class="hljs-params"></span></span><br><span class="hljs-params"><span class="hljs-function">              <span class="hljs-attr">req</span>: &#123; url?: <span class="hljs-built_in">string</span> &#125;</span></span><br><span class="hljs-params"><span class="hljs-function">            </span>) =&gt;</span> &#123;<br>              <span class="hljs-keyword">const</span> pathname = req.<span class="hljs-property">url</span>?.<span class="hljs-title function_">split</span>(<span class="hljs-string">&#x27;?&#x27;</span>)[<span class="hljs-number">0</span>] ?? <span class="hljs-string">&#x27;&#x27;</span>;<br>              <span class="hljs-keyword">const</span> stripped = baseURL &amp;&amp; pathname.<span class="hljs-title function_">startsWith</span>(baseURL)<br>                ? pathname.<span class="hljs-title function_">slice</span>(baseURL.<span class="hljs-property">length</span>)<br>                : pathname;<br>              <span class="hljs-keyword">if</span> (mockUrls.<span class="hljs-title function_">has</span>(stripped)) &#123;<br>                <span class="hljs-keyword">return</span> req.<span class="hljs-property">url</span>;<br>              &#125;<br>            &#125;;<br>          &#125;<br>        &#125;<br>      &#125;<br>    &#125;,<br><br>    <span class="hljs-comment">// ② configureServer 钩子：注册中间件</span><br>    <span class="hljs-title function_">configureServer</span>(<span class="hljs-params"><span class="hljs-attr">server</span>: <span class="hljs-title class_">ViteDevServer</span></span>) &#123;<br>      <span class="hljs-title function_">reloadJsonMocks</span>();<br><br>      <span class="hljs-comment">// 文件监听：JSON 热更新</span><br>      <span class="hljs-keyword">if</span> (<span class="hljs-title function_">existsSync</span>(dataDir)) &#123;<br>        <span class="hljs-keyword">try</span> &#123;<br>          <span class="hljs-title function_">watch</span>(dataDir, &#123; <span class="hljs-attr">recursive</span>: <span class="hljs-literal">true</span> &#125;, <span class="hljs-function">(<span class="hljs-params">_event, filename</span>) =&gt;</span> &#123;<br>            <span class="hljs-keyword">if</span> (filename?.<span class="hljs-title function_">endsWith</span>(<span class="hljs-string">&#x27;.json&#x27;</span>)) &#123;<br>              <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`[mock] 检测到变化: <span class="hljs-subst">$&#123;filename&#125;</span>，重新加载...`</span>);<br>              <span class="hljs-title function_">reloadJsonMocks</span>();<br>            &#125;<br>          &#125;);<br>        &#125; <span class="hljs-keyword">catch</span> &#123;<br>          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">&#x27;[mock] 文件监听失败，JSON 修改后需重启&#x27;</span>);<br>        &#125;<br>      &#125;<br><br>      <span class="hljs-comment">// 注册 Connect 中间件</span><br>      server.<span class="hljs-property">middlewares</span>.<span class="hljs-title function_">use</span>(<br>        <span class="hljs-title function_">async</span> (<br>          <span class="hljs-attr">req</span>: <span class="hljs-title class_">IncomingMessage</span>,<br>          <span class="hljs-attr">res</span>: <span class="hljs-title class_">ServerResponse</span>,<br>          <span class="hljs-attr">next</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span><br>        ) =&gt; &#123;<br>          <span class="hljs-keyword">const</span> parsed = <span class="hljs-title function_">parseUrl</span>(req.<span class="hljs-property">url</span> ?? <span class="hljs-string">&#x27;&#x27;</span>, <span class="hljs-literal">false</span>);<br>          <span class="hljs-keyword">const</span> pathname = parsed.<span class="hljs-property">pathname</span> ?? <span class="hljs-string">&#x27;&#x27;</span>;<br>          <span class="hljs-keyword">const</span> method = req.<span class="hljs-property">method</span> ?? <span class="hljs-string">&#x27;GET&#x27;</span>;<br><br>          <span class="hljs-keyword">const</span> entries = <span class="hljs-title function_">getAllEntries</span>();<br>          <span class="hljs-keyword">const</span> matched = <span class="hljs-title function_">matchMock</span>(entries, method, pathname, baseURL);<br>          <span class="hljs-keyword">if</span> (!matched) &#123;<br>            <span class="hljs-title function_">next</span>();  <span class="hljs-comment">// 不匹配，交给下一个中间件</span><br>            <span class="hljs-keyword">return</span>;<br>          &#125;<br><br>          <span class="hljs-keyword">try</span> &#123;<br>            <span class="hljs-keyword">const</span> options = <span class="hljs-keyword">await</span> <span class="hljs-title function_">parseMockRequest</span>(req);<br><br>            <span class="hljs-comment">// 模拟网络延迟</span><br>            <span class="hljs-keyword">if</span> (matched.<span class="hljs-property">timeout</span> &gt; <span class="hljs-number">0</span>) &#123;<br>              <span class="hljs-keyword">await</span> <span class="hljs-title function_">delay</span>(matched.<span class="hljs-property">timeout</span>);<br>            &#125;<br><br>            <span class="hljs-keyword">const</span> mockResponse = matched.<span class="hljs-title function_">resolve</span>(options);<br><br>            res.<span class="hljs-title function_">setHeader</span>(<span class="hljs-string">&#x27;Content-Type&#x27;</span>, <span class="hljs-string">&#x27;application/json&#x27;</span>);<br>            res.<span class="hljs-property">statusCode</span> = <span class="hljs-number">200</span>;<br>            res.<span class="hljs-title function_">end</span>(<span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">stringify</span>(mockResponse));<br><br>            <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<br>              <span class="hljs-string">`[mock] <span class="hljs-subst">$&#123;method&#125;</span> <span class="hljs-subst">$&#123;pathname&#125;</span> → code: <span class="hljs-subst">$&#123;mockResponse.code&#125;</span>`</span><br>            );<br>          &#125; <span class="hljs-keyword">catch</span> (e) &#123;<br>            <span class="hljs-comment">// handler 异常兜底，不崩溃 dev server</span><br>            res.<span class="hljs-title function_">setHeader</span>(<span class="hljs-string">&#x27;Content-Type&#x27;</span>, <span class="hljs-string">&#x27;application/json&#x27;</span>);<br>            res.<span class="hljs-property">statusCode</span> = <span class="hljs-number">200</span>;<br>            res.<span class="hljs-title function_">end</span>(<span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">stringify</span>(&#123;<br>              <span class="hljs-attr">code</span>: <span class="hljs-number">500</span>,<br>              <span class="hljs-attr">data</span>: <span class="hljs-literal">null</span>,<br>              <span class="hljs-attr">msg</span>: <span class="hljs-string">`Mock handler error: <span class="hljs-subst">$&#123;</span></span><br><span class="hljs-subst"><span class="hljs-string">                e <span class="hljs-keyword">instanceof</span> <span class="hljs-built_in">Error</span> ? e.message : <span class="hljs-string">&#x27;unknown&#x27;</span></span></span><br><span class="hljs-subst"><span class="hljs-string">              &#125;</span>`</span>,<br>              <span class="hljs-attr">message</span>: <span class="hljs-string">&#x27;mock handler error&#x27;</span><br>            &#125;));<br>          &#125;<br>        &#125;<br>      );<br><br>      <span class="hljs-keyword">const</span> total = handlerEntries.<span class="hljs-property">length</span> + jsonEntries.<span class="hljs-property">length</span>;<br>      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`\n  Mock server enabled (<span class="hljs-subst">$&#123;total&#125;</span> routes)\n`</span>);<br>    &#125;<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="六、JSON-热更新原理"><a href="#六、JSON-热更新原理" class="headerlink" title="六、JSON 热更新原理"></a>六、JSON 热更新原理</h2><h3 id="6-1-fs-watch-的工作方式"><a href="#6-1-fs-watch-的工作方式" class="headerlink" title="6.1 fs.watch 的工作方式"></a>6.1 fs.watch 的工作方式</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-title function_">watch</span>(dataDir, &#123; <span class="hljs-attr">recursive</span>: <span class="hljs-literal">true</span> &#125;, <span class="hljs-function">(<span class="hljs-params">_event, filename</span>) =&gt;</span> &#123;<br>  <span class="hljs-keyword">if</span> (filename?.<span class="hljs-title function_">endsWith</span>(<span class="hljs-string">&#x27;.json&#x27;</span>)) &#123;<br>    <span class="hljs-title function_">reloadJsonMocks</span>();<br>  &#125;<br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<p><code>fs.watch</code> 是 Node.js 提供的文件系统监听 API，底层使用操作系统的原生机制：</p>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>底层机制</th>
+<th>recursive 支持</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>macOS</td>
+<td>FSEvents</td>
+<td>原生支持</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>inotify</td>
+<td>Node 16+ 支持</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>ReadDirectoryChangesW</td>
+<td>原生支持</td>
+</tr>
+</tbody></table>
+<h3 id="6-2-为什么-JSON-能热更新但-TS-不能？"><a href="#6-2-为什么-JSON-能热更新但-TS-不能？" class="headerlink" title="6.2 为什么 JSON 能热更新但 TS 不能？"></a>6.2 为什么 JSON 能热更新但 TS 不能？</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><code class="hljs pgsql"><span class="hljs-type">JSON</span> 文件<br>    │<br>    ▼<br>  fs.watch 检测到变化<br>    │<br>    ▼<br>  reloadJsonMocks()<br>    │ 重新读取 &amp; 解析所有 <span class="hljs-type">JSON</span> 文件<br>    │ 替换 jsonEntries 数组<br>    │<br>    ▼<br>  下一次请求使用新数据 ✓<br><br><br>TS <span class="hljs-keyword">Handler</span> 文件<br>    │<br>    ▼<br>  Vite 启动时通过 <span class="hljs-keyword">import</span> 加载<br>    │<br>    ▼<br>  Node.js require 缓存了模块<br>    │<br>    ▼<br>  文件修改后缓存不会自动失效<br>    │<br>    ▼<br>  必须重启 dev <span class="hljs-keyword">server</span> ✗<br></code></pre></td></tr></table></figure>
+
+<p>JSON 文件每次用 <code>readFileSync</code> 读取，没有缓存问题。而 TS 文件是在 Vite 启动时通过 <code>import</code> 加载的，Node.js 的模块系统会缓存 <code>require()</code> 的结果。要实现 TS handler 热更新，需要手动清除 <code>require.cache</code>，这会引入复杂性和潜在的内存泄漏，不值得。</p>
+<h3 id="6-3-热更新的终端反馈"><a href="#6-3-热更新的终端反馈" class="headerlink" title="6.3 热更新的终端反馈"></a>6.3 热更新的终端反馈</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight prolog"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs prolog">[mock] 检测到文件变化: login/tenant-list.json，重新加载...<br>[mock] 已加载 <span class="hljs-number">9</span> 个 <span class="hljs-symbol">JSON</span> mock<br></code></pre></td></tr></table></figure>
+
+<p>修改 JSON 文件后 2-3 秒内生效，无需刷新浏览器（下一次 API 请求就会使用新数据）。</p>
+<hr>
+<h2 id="七、双数据源合并策略"><a href="#七、双数据源合并策略" class="headerlink" title="七、双数据源合并策略"></a>七、双数据源合并策略</h2><h3 id="7-1-JSON-vs-TS-Handler-的定位"><a href="#7-1-JSON-vs-TS-Handler-的定位" class="headerlink" title="7.1 JSON vs TS Handler 的定位"></a>7.1 JSON vs TS Handler 的定位</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>JSON 文件</th>
+<th>TS Handler</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>适用场景</td>
+<td>固定数据返回</td>
+<td>需要条件逻辑</td>
+</tr>
+<tr>
+<td>修改生效</td>
+<td>即时（热更新）</td>
+<td>需重启 dev server</td>
+</tr>
+<tr>
+<td>技术门槛</td>
+<td>零门槛，粘贴 API 响应即可</td>
+<td>需要写 TypeScript</td>
+</tr>
+<tr>
+<td>文件位置</td>
+<td><code>mock/data/&lt;业务域&gt;/</code></td>
+<td><code>mock/modules/&lt;模块&gt;.mock.ts</code></td>
+</tr>
+<tr>
+<td>注册方式</td>
+<td>自动扫描，无需注册</td>
+<td>需在 vite.config.ts 注册</td>
+</tr>
+</tbody></table>
+<h3 id="7-2-合并与优先级"><a href="#7-2-合并与优先级" class="headerlink" title="7.2 合并与优先级"></a>7.2 合并与优先级</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">getAllEntries</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">MockEntry</span>[] &#123;<br>  <span class="hljs-keyword">const</span> merged = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-title class_">MockEntry</span>&gt;();<br><br>  <span class="hljs-comment">// 先放 JSON</span><br>  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> entry <span class="hljs-keyword">of</span> jsonEntries) &#123;<br>    merged.<span class="hljs-title function_">set</span>(<span class="hljs-string">`<span class="hljs-subst">$&#123;entry.method&#125;</span>:<span class="hljs-subst">$&#123;entry.url&#125;</span>`</span>, entry);<br>  &#125;<br><br>  <span class="hljs-comment">// 再放 TS（同 key 覆盖 JSON）</span><br>  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> entry <span class="hljs-keyword">of</span> handlerEntries) &#123;<br>    merged.<span class="hljs-title function_">set</span>(<span class="hljs-string">`<span class="hljs-subst">$&#123;entry.method&#125;</span>:<span class="hljs-subst">$&#123;entry.url&#125;</span>`</span>, entry);<br>  &#125;<br><br>  <span class="hljs-keyword">return</span> <span class="hljs-title class_">Array</span>.<span class="hljs-title function_">from</span>(merged.<span class="hljs-title function_">values</span>());<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>使用 <code>Map</code> 以 <code>method:url</code> 为 key 做去重。后放的 TS handler 会覆盖先放的 JSON。这意味着：</p>
+<ol>
+<li>大部分接口用 JSON（简单、热更新）</li>
+<li>少数需要条件逻辑的接口用 TS handler 覆盖</li>
+<li>两者可以共存，不冲突</li>
+</ol>
+<p><strong>实际例子</strong>：<code>get-permission-info</code> 接口在 JSON 和 TS 中都有定义。JSON 提供完整的权限数据，TS handler 在此基础上增加了 token 过期的 401 判断：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// login.mock.ts — TS handler 覆盖 JSON</span><br>&#123;<br>  <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;/admin-api/system/auth/get-permission-info&#x27;</span>,<br>  <span class="hljs-attr">method</span>: <span class="hljs-string">&#x27;get&#x27;</span>,<br>  <span class="hljs-attr">handler</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">options</span>: <span class="hljs-title class_">MockRequestOptions</span></span>) =&gt;</span> &#123;<br>    <span class="hljs-keyword">const</span> auth = options.<span class="hljs-property">headers</span>.<span class="hljs-property">authorization</span> ?? <span class="hljs-string">&#x27;&#x27;</span>;<br>    <span class="hljs-comment">// 特殊 token → 模拟 401</span><br>    <span class="hljs-keyword">if</span> (auth === <span class="hljs-string">&#x27;Bearer expired-token&#x27;</span>) &#123;<br>      <span class="hljs-keyword">return</span> <span class="hljs-title function_">resultError</span>(<span class="hljs-string">&#x27;令牌已过期&#x27;</span>, <span class="hljs-number">401</span>);<br>    &#125;<br>    <span class="hljs-comment">// 正常情况 → 从 JSON 文件加载完整数据</span><br>    <span class="hljs-keyword">return</span> <span class="hljs-title function_">resultSuccess</span>(<span class="hljs-title function_">loadJsonData</span>(<span class="hljs-string">&#x27;get-permission-info.json&#x27;</span>));<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="八、与-axios-拦截器的协作"><a href="#八、与-axios-拦截器的协作" class="headerlink" title="八、与 axios 拦截器的协作"></a>八、与 axios 拦截器的协作</h2><p>Mock 返回的数据最终要经过 axios 拦截器处理，理解这个链路很重要。</p>
+<h3 id="8-1-请求链路全景"><a href="#8-1-请求链路全景" class="headerlink" title="8.1 请求链路全景"></a>8.1 请求链路全景</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs nix">Vue 组件调用 API<br>    │<br>    ▼<br>api<span class="hljs-operator">/</span>login.<span class="hljs-params">ts:</span>  http.get(&#x27;<span class="hljs-operator">/</span>admin-api<span class="hljs-operator">/</span>system<span class="hljs-operator">/</span>tenant<span class="hljs-operator">/</span>list&#x27;)<br>    │<br>    ▼<br>axios request interceptor<br>    │ 添加 Authorization、Tenant-Id headers<br>    │<br>    ▼<br>axios 发出请求:  GET <span class="hljs-symbol">/api-cosim/admin-api/system/tenant/list</span><br>    │                    ↑ baseURL 自动拼接<br>    ▼<br>Vite Dev Server 接收<br>    │<br>    ▼<br>Proxy bypass → Mock 中间件拦截<br>    │ 剥离 <span class="hljs-symbol">/api-cosim</span> 前缀<br>    │ 匹配 <span class="hljs-symbol">/admin-api/system/tenant/list</span><br>    │<br>    ▼<br>返回 HTTP <span class="hljs-number">200</span> <span class="hljs-operator">+</span> JSON <span class="hljs-params">body:</span><br>  &#123; <span class="hljs-string">&quot;code&quot;</span>: <span class="hljs-number">0</span>, <span class="hljs-string">&quot;data&quot;</span>: [...], <span class="hljs-string">&quot;msg&quot;</span>: <span class="hljs-string">&quot;success&quot;</span>, <span class="hljs-string">&quot;message&quot;</span>: <span class="hljs-string">&quot;success&quot;</span> &#125;<br>    │<br>    ▼<br>axios response interceptor<br>    │ HTTP <span class="hljs-number">200</span> → 进入成功分支<br>    │ response.data.code <span class="hljs-operator">==</span><span class="hljs-operator">=</span> <span class="hljs-number">0</span> → 正常<br>    │ return response.data<br>    │<br>    ▼<br>Vue 组件拿到:  &#123; <span class="hljs-params">code:</span> <span class="hljs-number">0</span>, <span class="hljs-params">data:</span> [...], <span class="hljs-params">msg:</span> <span class="hljs-string">&quot;success&quot;</span>, <span class="hljs-params">message:</span> <span class="hljs-string">&quot;success&quot;</span> &#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="8-2-Mock-如何触发错误路径"><a href="#8-2-Mock-如何触发错误路径" class="headerlink" title="8.2 Mock 如何触发错误路径"></a>8.2 Mock 如何触发错误路径</h3><p>Mock <strong>始终返回 HTTP 200</strong>，通过 <code>response.data.code</code> 触发不同的业务逻辑：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs stylus">Mock 返回 <span class="hljs-selector-tag">code</span>: <span class="hljs-number">401</span><br>    │<br>    ▼<br>axios response interceptor<br>    │ <span class="hljs-built_in">isHttp200</span>(response.status) → true<br>    │ <span class="hljs-built_in">isHttp401</span>(response<span class="hljs-selector-class">.data</span>.code) → true<br>    │<br>    ▼<br>触发 Token 刷新流程<br>    │ TokenInstance<span class="hljs-selector-class">.startRequestToken</span>()<br>    │ TokenInstance<span class="hljs-selector-class">.refreshToken</span>()<br>    │ ...<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs routeros">Mock 返回 code: 503<br>    │<br>    ▼<br>axios response interceptor<br>    │ response.data.code === 503<br>    │<br>    ▼<br>throw AppError(&#123;<br>  code: ErrorCode.SERVICE_UNAVAILABLE,<br>  userMessage: <span class="hljs-string">&#x27;服务不可用，请稍后再试&#x27;</span><br>&#125;)<br>&lt;p <span class="hljs-attribute">class</span>=<span class="hljs-string">&quot;code-caption&quot;</span> <span class="hljs-attribute">data-lang</span>=<span class="hljs-string">&quot;&quot;</span> <span class="hljs-attribute">data-line_number</span>=<span class="hljs-string">&quot;frontend&quot;</span> <span class="hljs-attribute">data-trim_indent</span>=<span class="hljs-string">&quot;backend&quot;</span> <span class="hljs-attribute">data-label_position</span>=<span class="hljs-string">&quot;outer&quot;</span> <span class="hljs-attribute">data-labels_left</span>=<span class="hljs-string">&quot;Code&quot;</span> <span class="hljs-attribute">data-labels_right</span>=<span class="hljs-string">&quot;:&quot;</span> <span class="hljs-attribute">data-labels_copy</span>=<span class="hljs-string">&quot;&quot;</span>&gt;&lt;span <span class="hljs-attribute">class</span>=<span class="hljs-string">&quot;code-caption-label&quot;</span>&gt;&lt;/span&gt;&lt;a <span class="hljs-attribute">class</span>=<span class="hljs-string">&quot;code-caption-copy&quot;</span>&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>这就是为什么 Mock 系统能完整模拟各种业务场景 -- 它不是绕过了 axios 拦截器，而是提供了正确格式的数据让拦截器按预期运行。<br><br>---<br><br><span class="hljs-comment">## 九、完整 Demo：从零搭建</span><br><br><span class="hljs-comment">### 9.1 项目结构</span><br></code></pre></td></tr></table></figure>
+<p>my-vite-mock-demo&#x2F;<br>├── package.json<br>├── vite.config.ts<br>├── .env.development        # 正常模式<br>├── .env.mock               # Mock 模式<br>├── src&#x2F;<br>│   ├── main.ts<br>│   ├── App.vue<br>│   ├── api&#x2F;<br>│   │   └── user.ts         # API 定义<br>│   └── utils&#x2F;<br>│       └── http.ts         # axios 实例<br>└── mock&#x2F;<br>    ├── mock-plugin.ts       # 插件核心<br>    ├── data&#x2F;<br>    │   └── user&#x2F;<br>    │       ├── user-list.json<br>    │       └── user-detail.json<br>    └── modules&#x2F;<br>        └── user.mock.ts     # 条件逻辑 handler</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs routeros"><br><span class="hljs-comment">### 9.2 环境配置</span><br><br>```bash<br><span class="hljs-comment"># .env.development</span><br><span class="hljs-attribute">VITE_APP_BASE_URL</span>=<span class="hljs-string">&#x27;/api&#x27;</span><br><span class="hljs-attribute">VITE_MOCK</span>=<span class="hljs-literal">false</span><br><br><span class="hljs-comment"># .env.mock</span><br><span class="hljs-attribute">VITE_APP_BASE_URL</span>=<span class="hljs-string">&#x27;/api&#x27;</span><br><span class="hljs-attribute">VITE_MOCK</span>=<span class="hljs-literal">true</span><br><span class="hljs-attribute">VITE_HTML_TITLE</span>=<span class="hljs-string">&#x27;Demo [Mock Mode]&#x27;</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-comment">// package.json</span><br><span class="hljs-punctuation">&#123;</span><br>  <span class="hljs-attr">&quot;scripts&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">&quot;dev&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vite&quot;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;dev:mock&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vite --mode mock&quot;</span><br>  <span class="hljs-punctuation">&#125;</span><br><span class="hljs-punctuation">&#125;</span><br>&lt;p class=<span class="hljs-string">&quot;code-caption&quot;</span> data-lang=<span class="hljs-string">&quot;&quot;</span> data-line_number=<span class="hljs-string">&quot;frontend&quot;</span> data-trim_indent=<span class="hljs-string">&quot;backend&quot;</span> data-label_position=<span class="hljs-string">&quot;outer&quot;</span> data-labels_left=<span class="hljs-string">&quot;Code&quot;</span> data-labels_right=<span class="hljs-string">&quot;:&quot;</span> data-labels_copy=<span class="hljs-string">&quot;&quot;</span>&gt;&lt;span class=<span class="hljs-string">&quot;code-caption-label&quot;</span>&gt;&lt;/span&gt;&lt;a class=<span class="hljs-string">&quot;code-caption-copy&quot;</span>&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>### <span class="hljs-number">9.3</span> Vite 配置<br><br>```typescript<br><span class="hljs-comment">// vite.config.ts</span><br>import <span class="hljs-punctuation">&#123;</span> defineConfig<span class="hljs-punctuation">,</span> loadEnv <span class="hljs-punctuation">&#125;</span> from &#x27;vite&#x27;;<br>import vue from &#x27;@vitejs/plugin-vue&#x27;;<br>import <span class="hljs-punctuation">&#123;</span> createMockPlugin <span class="hljs-punctuation">&#125;</span> from &#x27;./mock/mock-plugin&#x27;;<br>import userHandlers from &#x27;./mock/modules/user.mock&#x27;;<br><br>export default defineConfig((<span class="hljs-punctuation">&#123;</span> mode <span class="hljs-punctuation">&#125;</span>) =&gt; <span class="hljs-punctuation">&#123;</span><br>  const env = loadEnv(mode<span class="hljs-punctuation">,</span> process.cwd());<br>  const isMock = env.VITE_MOCK === &#x27;<span class="hljs-literal"><span class="hljs-keyword">true</span></span>&#x27;;<br><br>  return <span class="hljs-punctuation">&#123;</span><br>    plugins<span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><br>      vue()<span class="hljs-punctuation">,</span><br>      isMock &amp;&amp; createMockPlugin(<span class="hljs-punctuation">&#123;</span><br>        handlers<span class="hljs-punctuation">:</span> userHandlers<span class="hljs-punctuation">,</span><br>        baseURL<span class="hljs-punctuation">:</span> env.VITE_APP_BASE_URL  <span class="hljs-comment">// &#x27;/api&#x27;</span><br>      <span class="hljs-punctuation">&#125;</span>)<br>    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span><br>    server<span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>      port<span class="hljs-punctuation">:</span> <span class="hljs-number">3000</span><span class="hljs-punctuation">,</span><br>      proxy<span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>        &#x27;^/api&#x27;<span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>          target<span class="hljs-punctuation">:</span> &#x27;http<span class="hljs-punctuation">:</span><span class="hljs-comment">//localhost:8080&#x27;,</span><br>          changeOrigin<span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span><span class="hljs-punctuation">,</span><br>          rewrite<span class="hljs-punctuation">:</span> path =&gt; path.replace(/^\/api/<span class="hljs-punctuation">,</span> &#x27;&#x27;)<br>        <span class="hljs-punctuation">&#125;</span><br>      <span class="hljs-punctuation">&#125;</span><br>    <span class="hljs-punctuation">&#125;</span><br>  <span class="hljs-punctuation">&#125;</span>;<br><span class="hljs-punctuation">&#125;</span>);<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-4-axios-实例"><a href="#9-4-axios-实例" class="headerlink" title="9.4 axios 实例"></a>9.4 axios 实例</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// src/utils/http.ts</span><br><span class="hljs-keyword">import</span> axios <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;axios&#x27;</span>;<br><br><span class="hljs-keyword">const</span> http = axios.<span class="hljs-title function_">create</span>(&#123;<br>  <span class="hljs-attr">baseURL</span>: <span class="hljs-keyword">import</span>.<span class="hljs-property">meta</span>.<span class="hljs-property">env</span>.<span class="hljs-property">VITE_APP_BASE_URL</span>,  <span class="hljs-comment">// &#x27;/api&#x27;</span><br>  <span class="hljs-attr">timeout</span>: <span class="hljs-number">10000</span><br>&#125;);<br><br>http.<span class="hljs-property">interceptors</span>.<span class="hljs-property">response</span>.<span class="hljs-title function_">use</span>(<br>  <span class="hljs-function"><span class="hljs-params">response</span> =&gt;</span> &#123;<br>    <span class="hljs-keyword">const</span> &#123; code, data, msg &#125; = response.<span class="hljs-property">data</span>;<br>    <span class="hljs-keyword">if</span> (code === <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> response.<span class="hljs-property">data</span>;<br>    <span class="hljs-keyword">return</span> <span class="hljs-title class_">Promise</span>.<span class="hljs-title function_">reject</span>(<span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(msg || <span class="hljs-string">&#x27;请求失败&#x27;</span>));<br>  &#125;,<br>  <span class="hljs-function"><span class="hljs-params">error</span> =&gt;</span> <span class="hljs-title class_">Promise</span>.<span class="hljs-title function_">reject</span>(error)<br>);<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> http;<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-5-API-定义"><a href="#9-5-API-定义" class="headerlink" title="9.5 API 定义"></a>9.5 API 定义</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// src/api/user.ts</span><br><span class="hljs-keyword">import</span> http <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/utils/http&#x27;</span>;<br><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">User</span> &#123;<br>  <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">name</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">email</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">role</span>: <span class="hljs-built_in">string</span>;<br>&#125;<br><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">UserListResponse</span> &#123;<br>  <span class="hljs-attr">list</span>: <span class="hljs-title class_">User</span>[];<br>  <span class="hljs-attr">total</span>: <span class="hljs-built_in">number</span>;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">getUserList</span>(<span class="hljs-params">page = <span class="hljs-number">1</span>, size = <span class="hljs-number">10</span></span>) &#123;<br>  <span class="hljs-keyword">return</span> http.<span class="hljs-property">get</span>&lt;<span class="hljs-built_in">unknown</span>, &#123; <span class="hljs-attr">code</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">data</span>: <span class="hljs-title class_">UserListResponse</span> &#125;&gt;(<br>    <span class="hljs-string">&#x27;/user/list&#x27;</span>,<br>    &#123; <span class="hljs-attr">params</span>: &#123; page, size &#125; &#125;<br>  );<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">getUserDetail</span>(<span class="hljs-params"><span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span></span>) &#123;<br>  <span class="hljs-keyword">return</span> http.<span class="hljs-property">get</span>&lt;<span class="hljs-built_in">unknown</span>, &#123; <span class="hljs-attr">code</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">data</span>: <span class="hljs-title class_">User</span> &#125;&gt;(<br>    <span class="hljs-string">`/user/detail`</span>,<br>    &#123; <span class="hljs-attr">params</span>: &#123; id &#125; &#125;<br>  );<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createUser</span>(<span class="hljs-params"><span class="hljs-attr">data</span>: <span class="hljs-title class_">Omit</span>&lt;<span class="hljs-title class_">User</span>, <span class="hljs-string">&#x27;id&#x27;</span>&gt;</span>) &#123;<br>  <span class="hljs-keyword">return</span> http.<span class="hljs-title function_">post</span>(<span class="hljs-string">&#x27;/user/create&#x27;</span>, data);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-6-JSON-Mock-数据"><a href="#9-6-JSON-Mock-数据" class="headerlink" title="9.6 JSON Mock 数据"></a>9.6 JSON Mock 数据</h3><p class="code-caption" data-lang="json" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-comment">// mock/data/user/user-list.json</span><br><span class="hljs-punctuation">&#123;</span><br>  <span class="hljs-attr">&quot;url&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;/user/list&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;method&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;get&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;timeout&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">150</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;response&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">&quot;code&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>      <span class="hljs-attr">&quot;list&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><br>        <span class="hljs-punctuation">&#123;</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;张三&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;zhangsan@example.com&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;admin&quot;</span> <span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>        <span class="hljs-punctuation">&#123;</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;李四&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;lisi@example.com&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span> <span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>        <span class="hljs-punctuation">&#123;</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;王五&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;wangwu@example.com&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span> <span class="hljs-punctuation">&#125;</span><br>      <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;total&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><br>    <span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;msg&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><br>  <span class="hljs-punctuation">&#125;</span><br><span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-comment">// mock/data/user/user-detail.json</span><br><span class="hljs-punctuation">&#123;</span><br>  <span class="hljs-attr">&quot;url&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;/user/detail&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;method&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;get&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;timeout&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">100</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;response&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">&quot;code&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1&quot;</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;张三&quot;</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;zhangsan@example.com&quot;</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;admin&quot;</span><br>    <span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;msg&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><br>  <span class="hljs-punctuation">&#125;</span><br><span class="hljs-punctuation">&#125;</span><br>&lt;p class=<span class="hljs-string">&quot;code-caption&quot;</span> data-lang=<span class="hljs-string">&quot;&quot;</span> data-line_number=<span class="hljs-string">&quot;frontend&quot;</span> data-trim_indent=<span class="hljs-string">&quot;backend&quot;</span> data-label_position=<span class="hljs-string">&quot;outer&quot;</span> data-labels_left=<span class="hljs-string">&quot;Code&quot;</span> data-labels_right=<span class="hljs-string">&quot;:&quot;</span> data-labels_copy=<span class="hljs-string">&quot;&quot;</span>&gt;&lt;span class=<span class="hljs-string">&quot;code-caption-label&quot;</span>&gt;&lt;/span&gt;&lt;a class=<span class="hljs-string">&quot;code-caption-copy&quot;</span>&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>### <span class="hljs-number">9.7</span> TS Handler（条件逻辑）<br><br>```typescript<br><span class="hljs-comment">// mock/modules/user.mock.ts</span><br>import <span class="hljs-punctuation">&#123;</span> resultSuccess<span class="hljs-punctuation">,</span> resultError <span class="hljs-punctuation">&#125;</span> from &#x27;../mock-plugin&#x27;;<br>import type <span class="hljs-punctuation">&#123;</span> MockHandler<span class="hljs-punctuation">,</span> MockRequestOptions <span class="hljs-punctuation">&#125;</span> from &#x27;../mock-plugin&#x27;;<br><br>const userHandlers<span class="hljs-punctuation">:</span> MockHandler<span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span> = <span class="hljs-punctuation">[</span><br>  <span class="hljs-comment">// 创建用户 — 根据参数返回不同结果</span><br>  <span class="hljs-punctuation">&#123;</span><br>    url<span class="hljs-punctuation">:</span> &#x27;/user/create&#x27;<span class="hljs-punctuation">,</span><br>    method<span class="hljs-punctuation">:</span> &#x27;post&#x27;<span class="hljs-punctuation">,</span><br>    timeout<span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span><br>    handler<span class="hljs-punctuation">:</span> (options<span class="hljs-punctuation">:</span> MockRequestOptions) =&gt; <span class="hljs-punctuation">&#123;</span><br>      const body = options.body as Record&lt;string<span class="hljs-punctuation">,</span> unknown&gt;;<br><br>      <span class="hljs-comment">// 校验必填字段</span><br>      if (!body?.name || !body?.email) <span class="hljs-punctuation">&#123;</span><br>        return resultError(&#x27;姓名和邮箱不能为空&#x27;<span class="hljs-punctuation">,</span> <span class="hljs-number">400</span>);<br>      <span class="hljs-punctuation">&#125;</span><br><br>      <span class="hljs-comment">// 模拟邮箱重复</span><br>      if (body.email === &#x27;duplicate@example.com&#x27;) <span class="hljs-punctuation">&#123;</span><br>        return resultError(&#x27;该邮箱已被注册&#x27;<span class="hljs-punctuation">,</span> <span class="hljs-number">409</span>);<br>      <span class="hljs-punctuation">&#125;</span><br><br>      <span class="hljs-comment">// 成功</span><br>      return resultSuccess(<span class="hljs-punctuation">&#123;</span><br>        id<span class="hljs-punctuation">:</span> &#x27;new-&#x27; + Date.now()<span class="hljs-punctuation">,</span><br>        name<span class="hljs-punctuation">:</span> body.name<span class="hljs-punctuation">,</span><br>        email<span class="hljs-punctuation">:</span> body.email<span class="hljs-punctuation">,</span><br>        role<span class="hljs-punctuation">:</span> body.role ?? &#x27;user&#x27;<br>      <span class="hljs-punctuation">&#125;</span>);<br>    <span class="hljs-punctuation">&#125;</span><br>  <span class="hljs-punctuation">&#125;</span><br><span class="hljs-punctuation">]</span>;<br><br>export default userHandlers;<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-8-Vue-组件使用"><a href="#9-8-Vue-组件使用" class="headerlink" title="9.8 Vue 组件使用"></a>9.8 Vue 组件使用</h3><p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;!-- src/App.vue --&gt;<br>&lt;script setup lang=&quot;ts&quot;&gt;<br>import &#123; ref, onMounted &#125; from &#x27;vue&#x27;;<br>import &#123; getUserList, createUser &#125; from &#x27;./api/user&#x27;;<br><br>interface User &#123;<br>  id: string;<br>  name: string;<br>  email: string;<br>  role: string;<br>&#125;<br><br>const users = ref&lt;User[]&gt;([]);<br>const loading = ref(false);<br>const message = ref(&#x27;&#x27;);<br><br>async function fetchUsers() &#123;<br>  loading.value = true;<br>  try &#123;<br>    const res = await getUserList();<br>    users.value = res.data.list;<br>  &#125; catch (e) &#123;<br>    message.value = e instanceof Error ? e.message : &#x27;加载失败&#x27;;<br>  &#125; finally &#123;<br>    loading.value = false;<br>  &#125;<br>&#125;<br><br>async function handleCreate() &#123;<br>  try &#123;<br>    await createUser(&#123; name: &#x27;新用户&#x27;, email: &#x27;new@example.com&#x27;, role: &#x27;user&#x27; &#125;);<br>    message.value = &#x27;创建成功&#x27;;<br>    await fetchUsers();<br>  &#125; catch (e) &#123;<br>    message.value = e instanceof Error ? e.message : &#x27;创建失败&#x27;;<br>  &#125;<br>&#125;<br><br>async function handleDuplicate() &#123;<br>  try &#123;<br>    await createUser(&#123;<br>      name: &#x27;测试&#x27;,<br>      email: &#x27;duplicate@example.com&#x27;,<br>      role: &#x27;user&#x27;<br>    &#125;);<br>  &#125; catch (e) &#123;<br>    message.value = e instanceof Error ? e.message : &#x27;创建失败&#x27;;<br>  &#125;<br>&#125;<br><br>onMounted(fetchUsers);<br>&lt;/script&gt;<br><br>&lt;template&gt;<br>  &lt;div style=&quot;padding: 24px; max-width: 600px; margin: 0 auto&quot;&gt;<br>    &lt;h1&gt;Vite Mock Demo&lt;/h1&gt;<br>    &lt;p v-if=&quot;message&quot; style=&quot;color: #e65100&quot;&gt;&#123;&#123; message &#125;&#125;&lt;/p&gt;<br><br>    &lt;div style=&quot;margin-bottom: 16px&quot;&gt;<br>      &lt;button @click=&quot;fetchUsers&quot;&gt;刷新列表&lt;/button&gt;<br>      &lt;button @click=&quot;handleCreate&quot; style=&quot;margin-left: 8px&quot;&gt;创建用户（成功）&lt;/button&gt;<br>      &lt;button @click=&quot;handleDuplicate&quot; style=&quot;margin-left: 8px&quot;&gt;创建用户（邮箱重复）&lt;/button&gt;<br>    &lt;/div&gt;<br><br>    &lt;p v-if=&quot;loading&quot;&gt;加载中...&lt;/p&gt;<br>    &lt;table v-else border=&quot;1&quot; cellpadding=&quot;8&quot; style=&quot;border-collapse: collapse; width: 100%&quot;&gt;<br>      &lt;thead&gt;<br>        &lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;姓名&lt;/th&gt;&lt;th&gt;邮箱&lt;/th&gt;&lt;th&gt;角色&lt;/th&gt;&lt;/tr&gt;<br>      &lt;/thead&gt;<br>      &lt;tbody&gt;<br>        &lt;tr v-for=&quot;user in users&quot; :key=&quot;user.id&quot;&gt;<br>          &lt;td&gt;&#123;&#123; user.id &#125;&#125;&lt;/td&gt;<br>          &lt;td&gt;&#123;&#123; user.name &#125;&#125;&lt;/td&gt;<br>          &lt;td&gt;&#123;&#123; user.email &#125;&#125;&lt;/td&gt;<br>          &lt;td&gt;&#123;&#123; user.role &#125;&#125;&lt;/td&gt;<br>        &lt;/tr&gt;<br>      &lt;/tbody&gt;<br>    &lt;/table&gt;<br>  &lt;/div&gt;<br>&lt;/template&gt;<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-9-启动验证"><a href="#9-9-启动验证" class="headerlink" title="9.9 启动验证"></a>9.9 启动验证</h3><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># 启动 Mock 模式</span><br>pnpm dev:mock<br><br><span class="hljs-comment"># 终端输出</span><br>[mock] 已加载 2 个 JSON mock<br><br>  Mock server enabled (2 JSON + 1 handlers = 3 routes)<br><br><span class="hljs-comment"># 请求日志</span><br>[mock] GET /api/user/list → code: 0<br>[mock] POST /api/user/create → code: 0<br>[mock] POST /api/user/create → code: 409<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="十、异常兜底设计"><a href="#十、异常兜底设计" class="headerlink" title="十、异常兜底设计"></a>十、异常兜底设计</h2><h3 id="10-1-Handler-异常不崩-Dev-Server"><a href="#10-1-Handler-异常不崩-Dev-Server" class="headerlink" title="10.1 Handler 异常不崩 Dev Server"></a>10.1 Handler 异常不崩 Dev Server</h3><p>TS handler 是开发者写的代码，可能有 bug。插件必须兜住：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">try</span> &#123;<br>  <span class="hljs-keyword">const</span> mockResponse = matched.<span class="hljs-title function_">resolve</span>(options);<br>  res.<span class="hljs-title function_">end</span>(<span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">stringify</span>(mockResponse));<br>&#125; <span class="hljs-keyword">catch</span> (e) &#123;<br>  <span class="hljs-comment">// 兜底：返回 500，不崩溃</span><br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">`[mock] handler 执行异常: <span class="hljs-subst">$&#123;method&#125;</span> <span class="hljs-subst">$&#123;pathname&#125;</span>`</span>, e);<br>  res.<span class="hljs-title function_">end</span>(<span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">stringify</span>(&#123;<br>    <span class="hljs-attr">code</span>: <span class="hljs-number">500</span>,<br>    <span class="hljs-attr">data</span>: <span class="hljs-literal">null</span>,<br>    <span class="hljs-attr">msg</span>: <span class="hljs-string">`Mock handler error: <span class="hljs-subst">$&#123;e <span class="hljs-keyword">instanceof</span> <span class="hljs-built_in">Error</span> ? e.message : <span class="hljs-string">&#x27;unknown&#x27;</span>&#125;</span>`</span>,<br>    <span class="hljs-attr">message</span>: <span class="hljs-string">&#x27;mock handler error&#x27;</span><br>  &#125;));<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="10-2-文件监听失败不影响运行"><a href="#10-2-文件监听失败不影响运行" class="headerlink" title="10.2 文件监听失败不影响运行"></a>10.2 文件监听失败不影响运行</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">if</span> (<span class="hljs-title function_">existsSync</span>(dataDir)) &#123;<br>  <span class="hljs-keyword">try</span> &#123;<br>    <span class="hljs-title function_">watch</span>(dataDir, &#123; <span class="hljs-attr">recursive</span>: <span class="hljs-literal">true</span> &#125;, callback);<br>  &#125; <span class="hljs-keyword">catch</span> &#123;<br>    <span class="hljs-comment">// 监听失败只是降级为&quot;需手动重启&quot;，不影响 mock 功能</span><br>    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">&#x27;[mock] 文件监听启动失败，JSON 修改后需手动重启&#x27;</span>);<br>  &#125;<br>&#125; <span class="hljs-keyword">else</span> &#123;<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">`[mock] data 目录不存在: <span class="hljs-subst">$&#123;dataDir&#125;</span>，跳过文件监听`</span>);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="10-3-JSON-解析失败不阻塞其他文件"><a href="#10-3-JSON-解析失败不阻塞其他文件" class="headerlink" title="10.3 JSON 解析失败不阻塞其他文件"></a>10.3 JSON 解析失败不阻塞其他文件</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">loadJsonMock</span>(<span class="hljs-params"><span class="hljs-attr">filePath</span>: <span class="hljs-built_in">string</span></span>): <span class="hljs-title class_">MockEntry</span> | <span class="hljs-literal">null</span> &#123;<br>  <span class="hljs-keyword">try</span> &#123;<br>    <span class="hljs-comment">// ... 解析和校验</span><br>  &#125; <span class="hljs-keyword">catch</span> (e) &#123;<br>    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">`[mock] JSON 解析失败: <span class="hljs-subst">$&#123;filePath&#125;</span>`</span>, e);<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;  <span class="hljs-comment">// 返回 null，外层 filter 掉</span><br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><strong>设计原则</strong>：一个文件出错不影响其他文件。9 个 JSON 文件中有 1 个格式错误，其他 8 个照常工作。</p>
+<hr>
+<h2 id="十一、生产安全保证"><a href="#十一、生产安全保证" class="headerlink" title="十一、生产安全保证"></a>十一、生产安全保证</h2><h3 id="11-1-零构建产物污染"><a href="#11-1-零构建产物污染" class="headerlink" title="11.1 零构建产物污染"></a>11.1 零构建产物污染</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs markdown">Mock 插件只使用了两个 Vite 钩子：<br><span class="hljs-bullet">  -</span> config()           → 仅开发时执行<br><span class="hljs-bullet">  -</span> configureServer()  → 仅开发服务器存在时执行<br><br>构建时（vite build）：<br><span class="hljs-bullet">  -</span> 没有 dev server → configureServer 不执行<br><span class="hljs-bullet">  -</span> config() 虽然执行但只修改 proxy → 构建不走 proxy<br><span class="hljs-bullet">  -</span> mock/ 目录不在 src/ 内 → 不会被 Rollup 扫描<br></code></pre></td></tr></table></figure>
+
+<h3 id="11-2-条件加载"><a href="#11-2-条件加载" class="headerlink" title="11.2 条件加载"></a>11.2 条件加载</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// vite.config.ts</span><br>isMock &amp;&amp; <span class="hljs-title function_">createMockPlugin</span>(&#123; ... &#125;)<br></code></pre></td></tr></table></figure>
+
+<p><code>isMock</code> 为 <code>false</code> 时整个插件不会被创建，plugins 数组中放的是 <code>false</code>，Vite 会自动过滤掉 falsy 值。</p>
+<h3 id="11-3-环境变量隔离"><a href="#11-3-环境变量隔离" class="headerlink" title="11.3 环境变量隔离"></a>11.3 环境变量隔离</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs jboss-cli"><span class="hljs-string">.env.development</span>   VITE_MOCK 未定义  → isMock = <span class="hljs-literal">false</span><br><span class="hljs-string">.env.mock</span>          VITE_MOCK=<span class="hljs-literal">true</span>    → isMock = <span class="hljs-literal">true</span><br><span class="hljs-string">.env.production</span>    VITE_MOCK 未定义  → isMock = <span class="hljs-literal">false</span><br></code></pre></td></tr></table></figure>
+
+<p>生产构建时 <code>loadEnv(&#39;production&#39;, ...)</code> 读取 <code>.env.production</code>，没有 <code>VITE_MOCK</code>，插件不会加载。</p>
+<hr>
+<h2 id="十二、排障指南"><a href="#十二、排障指南" class="headerlink" title="十二、排障指南"></a>十二、排障指南</h2><h3 id="常见问题-1：接口没有被-Mock-拦截"><a href="#常见问题-1：接口没有被-Mock-拦截" class="headerlink" title="常见问题 1：接口没有被 Mock 拦截"></a>常见问题 1：接口没有被 Mock 拦截</h3><p><strong>排查步骤</strong>：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># 1. 确认 mock 模式启动</span><br><span class="hljs-comment">#    终端应该有 &quot;Mock server enabled&quot; 输出</span><br><br><span class="hljs-comment"># 2. 检查请求的完整 URL</span><br><span class="hljs-comment">#    打开浏览器 DevTools → Network → 看实际请求路径</span><br><span class="hljs-comment">#    例如：/api-cosim/admin-api/system/tenant/list</span><br><br><span class="hljs-comment"># 3. 对比 mock 注册的 URL</span><br><span class="hljs-comment">#    JSON 文件中的 url 字段是否匹配？</span><br><span class="hljs-comment">#    是否忘记了 baseURL 前缀的问题？</span><br><br><span class="hljs-comment"># 4. 检查终端有没有 JSON 加载警告</span><br><span class="hljs-comment">#    [mock] 跳过格式不完整的文件: ...</span><br><span class="hljs-comment">#    [mock] 无效的 method: ...</span><br></code></pre></td></tr></table></figure>
+
+<p><strong>最常见的原因</strong>：</p>
+<ul>
+<li>没有传 <code>baseURL</code> 给 <code>createMockPlugin()</code></li>
+<li>JSON 文件中 <code>method</code> 大小写不匹配</li>
+<li>JSON 文件缺少 <code>response.code</code> 或 <code>response.msg</code></li>
+</ul>
+<h3 id="常见问题-2：proxy-报错-ETIMEDOUT"><a href="#常见问题-2：proxy-报错-ETIMEDOUT" class="headerlink" title="常见问题 2：proxy 报错 ETIMEDOUT"></a>常见问题 2：proxy 报错 ETIMEDOUT</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight subunit"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs subunit"><span class="hljs-keyword">ERROR </span>[vite] http proxy error: /api-cosim/admin-api/...<br><span class="hljs-keyword">Error: </span>connect ETIMEDOUT 192.168.x.x:8001<br></code></pre></td></tr></table></figure>
+
+<p>这说明请求没有被 Mock 拦截，穿透到了 proxy 去连真实后端。原因是 bypass 没有生效。检查：</p>
+<ol>
+<li><code>createMockPlugin</code> 的 <code>baseURL</code> 参数是否正确</li>
+<li>proxy 规则的 key 是否覆盖了你的请求路径</li>
+</ol>
+<h3 id="常见问题-3：JSON-修改后不生效"><a href="#常见问题-3：JSON-修改后不生效" class="headerlink" title="常见问题 3：JSON 修改后不生效"></a>常见问题 3：JSON 修改后不生效</h3><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># 检查终端是否有热更新日志</span><br><span class="hljs-comment"># [mock] 检测到文件变化: xxx.json，重新加载...</span><br><br><span class="hljs-comment"># 如果没有，可能是：</span><br><span class="hljs-comment"># 1. 文件不在 mock/data/ 目录下</span><br><span class="hljs-comment"># 2. fs.watch 启动失败（检查启动时是否有警告）</span><br><span class="hljs-comment"># 3. 文件扩展名不是 .json</span><br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="十三、与第三方-Mock-方案对比"><a href="#十三、与第三方-Mock-方案对比" class="headerlink" title="十三、与第三方 Mock 方案对比"></a>十三、与第三方 Mock 方案对比</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>自建 Vite 插件</th>
+<th>vite-plugin-mock</th>
+<th>Mock Service Worker</th>
+<th>Apifox Mock</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>依赖</td>
+<td>零依赖</td>
+<td>mockjs + 插件</td>
+<td>msw 包</td>
+<td>需要网络</td>
+</tr>
+<tr>
+<td>运行层</td>
+<td>Vite Dev Server</td>
+<td>Vite Dev Server</td>
+<td>Service Worker (浏览器)</td>
+<td>云端</td>
+</tr>
+<tr>
+<td>侵入性</td>
+<td>零</td>
+<td>零</td>
+<td>需要注册 SW</td>
+<td>零</td>
+</tr>
+<tr>
+<td>JSON 热更新</td>
+<td>支持</td>
+<td>不支持</td>
+<td>不适用</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td>条件逻辑</td>
+<td>TS Handler</td>
+<td>TS Handler</td>
+<td>JS Handler</td>
+<td>有限支持</td>
+</tr>
+<tr>
+<td>浏览器 Network</td>
+<td>显示为 HTTP 200</td>
+<td>显示为 HTTP 200</td>
+<td>显示为 mock 标记</td>
+<td>正常显示</td>
+</tr>
+<tr>
+<td>离线可用</td>
+<td>是</td>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td>构建产物</td>
+<td>不进入</td>
+<td>不进入</td>
+<td>SW 文件进入</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td>proxy 兼容</td>
+<td>bypass 方案</td>
+<td>类似</td>
+<td>不涉及</td>
+<td>不涉及</td>
+</tr>
+</tbody></table>
+<p>自建方案的核心优势：<strong>零依赖 + JSON 热更新 + 完全控制</strong>。在项目特定的 <code>RESP&lt;T&gt;</code> 响应格式、baseURL 前缀处理这些场景下，自建方案比通用库更贴合。</p>
+<hr>
+<h2 id="十四、最佳实践总结"><a href="#十四、最佳实践总结" class="headerlink" title="十四、最佳实践总结"></a>十四、最佳实践总结</h2><h3 id="文件组织"><a href="#文件组织" class="headerlink" title="文件组织"></a>文件组织</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs nix">mock<span class="hljs-operator">/</span>data<span class="hljs-symbol">/</span> 按业务域划分子目录：<br>  login<span class="hljs-symbol">/</span>    → 认证相关<br>  user<span class="hljs-symbol">/</span>     → 用户管理<br>  scene<span class="hljs-symbol">/</span>    → 场景管理<br>  ...<br><br>文件命名：<span class="hljs-operator">&lt;</span>资源<span class="hljs-operator">&gt;</span><span class="hljs-operator">-</span><span class="hljs-operator">&lt;</span>操作<span class="hljs-operator">&gt;</span>.json<br>  user-list.json<br>  user-detail.json<br>  scene-checkout.json<br></code></pre></td></tr></table></figure>
+
+<h3 id="数据来源"><a href="#数据来源" class="headerlink" title="数据来源"></a>数据来源</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs mipsasm"><span class="hljs-number">1</span>. 从 <span class="hljs-keyword">Swagger/Apifox </span>复制 → 包裹为 <span class="hljs-keyword">JSON </span>文件<br><span class="hljs-number">2</span>. 从浏览器 Network 复制 → 包裹为 <span class="hljs-keyword">JSON </span>文件<br><span class="hljs-number">3</span>. 需要条件逻辑 → 写 TS handler，<span class="hljs-keyword">JSON </span>提供基础数据<br></code></pre></td></tr></table></figure>
+
+<h3 id="开发流程"><a href="#开发流程" class="headerlink" title="开发流程"></a>开发流程</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs markdown"><span class="hljs-bullet">1.</span> 拿到接口文档<br><span class="hljs-bullet">2.</span> 创建 JSON mock 文件<br><span class="hljs-bullet">3.</span> pnpm dev:mock 启动<br><span class="hljs-bullet">4.</span> 前端页面对接 API<br><span class="hljs-bullet">5.</span> 后端就绪后切回 pnpm dev<br><span class="hljs-bullet">6.</span> 联调验证<br></code></pre></td></tr></table></figure>
+
+<h3 id="需要记住的规则"><a href="#需要记住的规则" class="headerlink" title="需要记住的规则"></a>需要记住的规则</h3><ol>
+<li><strong>所有 Mock 响应 HTTP 状态码都是 200</strong>，业务状态用 <code>response.code</code> 区分</li>
+<li><strong>JSON 文件改了即时生效</strong>，TS handler 改了要重启</li>
+<li><strong>TS handler 优先级高于 JSON</strong>，同 url+method 会覆盖</li>
+<li><strong>mock&#x2F; 目录不在 src&#x2F; 内</strong>，不会被打包进生产产物</li>
+<li><strong>baseURL 要传对</strong>，否则请求会穿透到 proxy</li>
+</ol>
+<hr>
+<h2 id="附录-A：完整类型定义速查"><a href="#附录-A：完整类型定义速查" class="headerlink" title="附录 A：完整类型定义速查"></a>附录 A：完整类型定义速查</h2><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// ── 方法类型 ──</span><br><span class="hljs-keyword">type</span> <span class="hljs-title class_">MockMethod</span> = <span class="hljs-string">&#x27;get&#x27;</span> | <span class="hljs-string">&#x27;post&#x27;</span> | <span class="hljs-string">&#x27;put&#x27;</span> | <span class="hljs-string">&#x27;delete&#x27;</span>;<br><br><span class="hljs-comment">// ── 请求信息 ──</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockRequestOptions</span> &#123;<br>  <span class="hljs-attr">query</span>: <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;;<br>  <span class="hljs-attr">body</span>: <span class="hljs-built_in">unknown</span>;<br>  <span class="hljs-attr">headers</span>: <span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;;<br>&#125;<br><br><span class="hljs-comment">// ── 响应格式 ──</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockResponse</span>&lt;T = <span class="hljs-built_in">unknown</span>&gt; &#123;<br>  <span class="hljs-attr">code</span>: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">data</span>: T | <span class="hljs-literal">null</span>;<br>  <span class="hljs-attr">msg</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">message</span>: <span class="hljs-built_in">string</span>;<br>&#125;<br><br><span class="hljs-comment">// ── JSON 文件格式 ──</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockJsonFile</span> &#123;<br>  <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">method</span>: <span class="hljs-title class_">MockMethod</span>;<br>  <span class="hljs-attr">timeout</span>?: <span class="hljs-built_in">number</span>;        <span class="hljs-comment">// 默认 200ms</span><br>  <span class="hljs-attr">response</span>: <span class="hljs-title class_">MockResponse</span>;<br>&#125;<br><br><span class="hljs-comment">// ── TS Handler 定义 ──</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">MockHandler</span> &#123;<br>  <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">method</span>: <span class="hljs-title class_">MockMethod</span>;<br>  <span class="hljs-attr">timeout</span>?: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-attr">handler</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">options</span>: <span class="hljs-title class_">MockRequestOptions</span></span>) =&gt;</span> <span class="hljs-title class_">MockResponse</span>;<br>&#125;<br><br><span class="hljs-comment">// ── 插件选项 ──</span><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">CreateMockOptions</span> &#123;<br>  <span class="hljs-attr">handlers</span>?: <span class="hljs-title class_">MockHandler</span>[];<br>  <span class="hljs-attr">baseURL</span>?: <span class="hljs-built_in">string</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h2 id="附录-B：工具函数速查"><a href="#附录-B：工具函数速查" class="headerlink" title="附录 B：工具函数速查"></a>附录 B：工具函数速查</h2><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// 成功响应</span><br><span class="hljs-title function_">resultSuccess</span>(&#123; <span class="hljs-attr">id</span>: <span class="hljs-string">&#x27;1&#x27;</span>, <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;张三&#x27;</span> &#125;)<br><span class="hljs-comment">// → &#123; code: 0, data: &#123; id: &#x27;1&#x27;, name: &#x27;张三&#x27; &#125;, msg: &#x27;success&#x27;, message: &#x27;success&#x27; &#125;</span><br><br><span class="hljs-comment">// 错误响应</span><br><span class="hljs-title function_">resultError</span>(<span class="hljs-string">&#x27;参数错误&#x27;</span>, <span class="hljs-number">400</span>)<br><span class="hljs-comment">// → &#123; code: 400, data: null, msg: &#x27;参数错误&#x27;, message: &#x27;参数错误&#x27; &#125;</span><br><br><span class="hljs-comment">// 分页响应</span><br><span class="hljs-title function_">resultPageSuccess</span>(list, &#123; <span class="hljs-attr">page</span>: <span class="hljs-number">1</span>, <span class="hljs-attr">size</span>: <span class="hljs-number">10</span>, <span class="hljs-attr">total</span>: <span class="hljs-number">100</span> &#125;)<br><span class="hljs-comment">// → &#123; code: 0, data: &#123; list, number: 1, size: 10, totalElements: 100, totalPages: 10, numberOfElements: list.length &#125; &#125;</span><br></code></pre></td></tr></table></figure>
+
+<h2 id="附录-C：环境变量配置模板"><a href="#附录-C：环境变量配置模板" class="headerlink" title="附录 C：环境变量配置模板"></a>附录 C：环境变量配置模板</h2><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># .env.mock — Mock 模式专用</span><br>VITE_APP_BASE_URL=<span class="hljs-string">&#x27;/api-cosim&#x27;</span><br>VITE_HTML_TITLE=<span class="hljs-string">&#x27;平台 [Mock]&#x27;</span><br>VITE_DOMAIN=<span class="hljs-string">&#x27;http://192.168.x.x:8001&#x27;</span><br>VITE_APP_BASE_PATH=<span class="hljs-string">&#x27;/cloud&#x27;</span><br>VITE_MOCK=<span class="hljs-literal">true</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-comment">// package.json scripts</span><br><span class="hljs-punctuation">&#123;</span><br>  <span class="hljs-attr">&quot;dev&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vite&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;dev:mock&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vite --mode mock&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;build&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vite build&quot;</span><br><span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/%E5%89%8D%E7%AB%AF%E5%B7%A5%E7%A8%8B%E5%8C%96/" class="category-chain-item">前端工程化</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/vite/" class="print-no-link">#vite</a>
+      
+        <a href="../../../../../tags/mock/" class="print-no-link">#mock</a>
+      
+        <a href="../../../../../tags/vue3/" class="print-no-link">#vue3</a>
+      
+        <a href="../../../../../tags/typescript/" class="print-no-link">#typescript</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>深入 Vite Mock 系统：从插件原理到生产级实践</div>
+      <div>http://example.com/2026/04/05/frontend-big-data/vite-mock-deep-dive/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年4月5日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../../03/29/ai/harness-design/" title="harness-design">
+                        <span class="hidden-mobile">harness-design</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
