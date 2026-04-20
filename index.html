@@ -229,6 +229,146 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h2 class="index-header">
         
+        <a href="2026/04/19/micro-web/file-preview-architecture-design/" target="_self">
+          微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台
+        </a>
+      </h2>
+
+      
+      <a class="index-excerpt index-excerpt__noimg" href="2026/04/19/micro-web/file-preview-architecture-design/" target="_self">
+        <div>
+          一、问题的起点在一个多租户的微前端系统里，文件预览是一个看似简单但极易积累技术债的模块。它同时涉及：  多种文件类型（CSV &#x2F; TXT &#x2F; 图片 &#x2F; XML &#x2F; Markdown &#x2F; PDF &#x2F; DOCX &#x2F; XLSX…） 多个子应用（数据管理 &#x2F; 协同仿真 &#x2F; 路由校验…）都要预览 签名 URL 的时效性
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2026-04-19 20:34" pubdate>
+              2026-04-19
+            </time>
+          </div>
+        
+        
+          <div class="post-meta mr-3 d-flex align-items-center">
+            <i class="iconfont icon-category"></i>
+            
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="categories/%E5%BE%AE%E5%89%8D%E7%AB%AF%E6%9E%B6%E6%9E%84/" class="category-chain-item">微前端架构</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+          </div>
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="tags/vue3/">#vue3</a>
+            
+              <a href="tags/micro-frontend/">#micro-frontend</a>
+            
+              <a href="tags/architecture/">#architecture</a>
+            
+              <a href="tags/plugin-system/">#plugin-system</a>
+            
+              <a href="tags/design-pattern/">#design-pattern</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h2 class="index-header">
+        
+        <a href="2026/04/19/micro-web/preview-cache-ttl-vs-expiresat/" target="_self">
+          微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL
+        </a>
+      </h2>
+
+      
+      <a class="index-excerpt index-excerpt__noimg" href="2026/04/19/micro-web/preview-cache-ttl-vs-expiresat/" target="_self">
+        <div>
+          一、从一个诡异的 Bug 说起某天 QA 提了一个复现概率 &lt; 10% 的 bug：  “切换工作空间后，点第一份 xlsx 预览，偶尔会弹出上一个空间的文件内容。”  看了一下老代码的”缓存”：   12345678910// 老版本：模块级全局 Mapconst fileDownloadMap = new Map&lt;string, string&gt;();async functio
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2026-04-19 20:24" pubdate>
+              2026-04-19
+            </time>
+          </div>
+        
+        
+          <div class="post-meta mr-3 d-flex align-items-center">
+            <i class="iconfont icon-category"></i>
+            
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="categories/%E5%BE%AE%E5%89%8D%E7%AB%AF%E6%9E%B6%E6%9E%84/" class="category-chain-item">微前端架构</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+          </div>
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="tags/vue3/">#vue3</a>
+            
+              <a href="tags/micro-frontend/">#micro-frontend</a>
+            
+              <a href="tags/architecture/">#architecture</a>
+            
+              <a href="tags/cache/">#cache</a>
+            
+              <a href="tags/LRU/">#LRU</a>
+            
+              <a href="tags/AbortController/">#AbortController</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h2 class="index-header">
+        
         <a href="2026/04/16/micro-web/micro-frontend-bridge-design/" target="_self">
           微前端状态共享：基于 Proxy 的 Bridge 设计与实现
         </a>
@@ -646,105 +786,11 @@
     </article>
   </div>
 
-  <div class="row mx-auto index-card">
-    
-    
-    <article class="col-12 col-md-12 mx-auto index-info">
-      <h2 class="index-header">
-        
-        <a href="2024/08/06/micro-web/micro-frontend-1/" target="_self">
-          微前端搭建总结
-        </a>
-      </h2>
-
-      
-      <a class="index-excerpt index-excerpt__noimg" href="2024/08/06/micro-web/micro-frontend-1/" target="_self">
-        <div>
-          确定启用微前端处理公司业务时，通过微前端 4个关键性决策 考虑设计根据微前端架构决策：  微前端在架构中的定义 微前端的组合 微前端的路由 微前端之间的通信  定义微前端首先我们可以根据自身业务，判断前端业务试图是，横向拆分，还是纵向拆分。  横向业务如下所示业务在横向拆分时，一个视图上有多个微前端，这些组成部分可以由不同团队开发  纵向业务拆分如下所示纵向拆分业务中，一次视图上只有一个微前端，每
-        </div>
-      </a>
-
-      <div class="index-btm post-metas">
-        
-          <div class="post-meta mr-3">
-            <i class="iconfont icon-date"></i>
-            <time datetime="2024-08-06 23:11" pubdate>
-              2024-08-06
-            </time>
-          </div>
-        
-        
-          <div class="post-meta mr-3 d-flex align-items-center">
-            <i class="iconfont icon-category"></i>
-            
-
-<span class="category-chains">
-  
-  
-    
-      <span class="category-chain">
-        
-  <a href="categories/%E5%BE%AE%E5%89%8D%E7%AB%AF/" class="category-chain-item">微前端</a>
-  
-  
-
-      </span>
-    
-  
-</span>
-
-          </div>
-        
-        
-          <div class="post-meta">
-            <i class="iconfont icon-tags"></i>
-            
-              <a href="tags/%E5%89%8D%E7%AB%AF/">#前端</a>
-            
-          </div>
-        
-      </div>
-    </article>
-  </div>
-
-  <div class="row mx-auto index-card">
-    
-    
-    <article class="col-12 col-md-12 mx-auto index-info">
-      <h2 class="index-header">
-        
-        <a href="2024/06/10/frontend-big-data/batch-render/" target="_self">
-          前端x6分批万级节点
-        </a>
-      </h2>
-
-      
-      <a class="index-excerpt index-excerpt__noimg" href="2024/06/10/frontend-big-data/batch-render/" target="_self">
-        <div>
-          需求前端画布上需要渲染10万节点，技术方案选择 vue3 + x6 当前生成节点测试对象为如下   123456789101112const generateRandomPosition = () =&gt; &#123;    const x = Math.floor(Math.random() * 8000);    const y = Math.floor(Math.random() * 8
-        </div>
-      </a>
-
-      <div class="index-btm post-metas">
-        
-          <div class="post-meta mr-3">
-            <i class="iconfont icon-date"></i>
-            <time datetime="2024-06-10 16:59" pubdate>
-              2024-06-10
-            </time>
-          </div>
-        
-        
-        
-      </div>
-    </article>
-  </div>
-
 
 
   <nav aria-label="navigation">
     <span class="pagination" id="pagination">
-      <span class="page-number current">1</span><a class="page-number" href="page/2/#board">2</a><a class="page-number" href="page/3/#board">3</a><a class="extend next" rel="next" href="page/2/#board"><i class="iconfont icon-arrowright"></i></a>
+      <span class="page-number current">1</span><a class="page-number" href="page/2/#board">2</a><a class="page-number" href="page/3/#board">3</a><a class="page-number" href="page/4/#board">4</a><a class="extend next" rel="next" href="page/2/#board"><i class="iconfont icon-arrowright"></i></a>
     </span>
   </nav>
 

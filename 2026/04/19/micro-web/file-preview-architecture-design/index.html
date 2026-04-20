@@ -1,0 +1,1339 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="一、问题的起点在一个多租户的微前端系统里，文件预览是一个看似简单但极易积累技术债的模块。它同时涉及：  多种文件类型（CSV &#x2F; TXT &#x2F; 图片 &#x2F; XML &#x2F; Markdown &#x2F; PDF &#x2F; DOCX &#x2F; XLSX…） 多个子应用（数据管理 &#x2F; 协同仿真 &#x2F; 路由校验…）都要预览 签名 URL 的时效性">
+<meta property="og:type" content="article">
+<meta property="og:title" content="微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台">
+<meta property="og:url" content="http://example.com/2026/04/19/micro-web/file-preview-architecture-design/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="一、问题的起点在一个多租户的微前端系统里，文件预览是一个看似简单但极易积累技术债的模块。它同时涉及：  多种文件类型（CSV &#x2F; TXT &#x2F; 图片 &#x2F; XML &#x2F; Markdown &#x2F; PDF &#x2F; DOCX &#x2F; XLSX…） 多个子应用（数据管理 &#x2F; 协同仿真 &#x2F; 路由校验…）都要预览 签名 URL 的时效性">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-19T12:34:46.000Z">
+<meta property="article:modified_time" content="2026-04-19T12:39:14.860Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="vue3">
+<meta property="article:tag" content="micro-frontend">
+<meta property="article:tag" content="architecture">
+<meta property="article:tag" content="plugin-system">
+<meta property="article:tag" content="design-pattern">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台 - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-04-19 20:34" pubdate>
+          2026年4月19日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          7.3k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          61 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h2 id="一、问题的起点"><a href="#一、问题的起点" class="headerlink" title="一、问题的起点"></a>一、问题的起点</h2><p>在一个多租户的微前端系统里，文件预览是一个看似简单但极易积累技术债的模块。它同时涉及：</p>
+<ul>
+<li>多种文件类型（CSV &#x2F; TXT &#x2F; 图片 &#x2F; XML &#x2F; Markdown &#x2F; PDF &#x2F; DOCX &#x2F; XLSX…）</li>
+<li>多个子应用（数据管理 &#x2F; 协同仿真 &#x2F; 路由校验…）都要预览</li>
+<li>签名 URL 的时效性、租户隔离、工作空间隔离</li>
+<li>大文件的加载门禁与性能保护</li>
+<li>用户在任意时刻关闭 &#x2F; 切换预览的中止语义</li>
+</ul>
+<p>在很多团队里，这个模块从”写个弹窗”开始，慢慢演化成一堆分散在各子应用、各业务页面的重复代码。直到某一天 QA 提了一个跨租户串数据的 bug，大家才意识到要重新设计。</p>
+<p>这篇文章完整记录了我们把一个<strong>有 9 处已知设计债的预览模块</strong>重构为<strong>可插拔、可扩展、跨子应用复用</strong>的预览平台的全部设计思路。涉及：</p>
+<ul>
+<li>现状痛点盘点（9 宗罪）</li>
+<li>分层架构设计（契约 → 基建 → 外壳 → 渲染器）</li>
+<li>Registry 插件化的设计决策</li>
+<li>Scope-aware 缓存 + AbortGroup 生命周期控制</li>
+<li>Host 状态机 + Dialog 作用域插槽</li>
+<li>微前端场景下的集成模式（Shell vs 子应用）</li>
+<li>关键取舍与踩坑</li>
+</ul>
+<p>读完你应当能在自己的项目里复制这套架构，或拿来评审现有预览实现的缺陷。</p>
+<h2 id="二、旧方案的-9-宗设计债"><a href="#二、旧方案的-9-宗设计债" class="headerlink" title="二、旧方案的 9 宗设计债"></a>二、旧方案的 9 宗设计债</h2><p>先看看重构前典型老方案长什么样。一个业务页面同时挂 4 个预览弹窗：</p>
+<p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;template&gt;<br>  &lt;CsvPreviewDialog v-model:visible=&quot;csvVisible&quot; :url=&quot;csvUrl&quot; /&gt;<br>  &lt;TxtImagePreviewDialog v-model:visible=&quot;txtVisible&quot; :url=&quot;txtUrl&quot; :type=&quot;txtType&quot; /&gt;<br>  &lt;XmlPreviewDialog v-model:visible=&quot;xmlVisible&quot; :url=&quot;xmlUrl&quot; /&gt;<br>  &lt;WordExcelPdfDialog v-model:visible=&quot;officeVisible&quot; :url=&quot;officeUrl&quot; :type=&quot;officeType&quot; /&gt;<br>&lt;/template&gt;<br></code></pre></td></tr></table></figure>
+
+<p>通过 mitt &#x2F; 事件总线触发：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs typescript">emitter.<span class="hljs-title function_">emit</span>(<span class="hljs-string">&#x27;preview:csv&#x27;</span>, &#123; id, name &#125;);<br>emitter.<span class="hljs-title function_">emit</span>(<span class="hljs-string">&#x27;preview:txtImage&#x27;</span>, &#123; <span class="hljs-attr">data</span>: &#123; id, name &#125;, <span class="hljs-attr">fileType</span>: <span class="hljs-string">&#x27;PNG&#x27;</span> &#125;);<br>emitter.<span class="hljs-title function_">emit</span>(<span class="hljs-string">&#x27;preview:pdf&#x27;</span>, &#123; id, name, <span class="hljs-attr">fileType</span>: <span class="hljs-string">&#x27;DOCX&#x27;</span> &#125;);<br>emitter.<span class="hljs-title function_">emit</span>(<span class="hljs-string">&#x27;preview:xml&#x27;</span>, &#123; id, name &#125;);<br><br><span class="hljs-keyword">const</span> fileDownloadMap = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;();   <span class="hljs-comment">// 全局缓存</span><br><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">openFile</span>(<span class="hljs-params"><span class="hljs-attr">type</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">data</span>: <span class="hljs-title class_">FileItem</span></span>): <span class="hljs-built_in">void</span> &#123;<br>  <span class="hljs-keyword">switch</span> (<span class="hljs-keyword">type</span>) &#123;                                     <span class="hljs-comment">// 硬编码分发</span><br>    <span class="hljs-keyword">case</span> <span class="hljs-string">&#x27;CSV&#x27;</span>:<br>      emitter.<span class="hljs-title function_">emit</span>(<span class="hljs-string">&#x27;preview:csv&#x27;</span>, data); <span class="hljs-keyword">break</span>;<br>    <span class="hljs-keyword">case</span> <span class="hljs-string">&#x27;PDF&#x27;</span>:<br>    <span class="hljs-keyword">case</span> <span class="hljs-string">&#x27;DOCX&#x27;</span>:<br>    <span class="hljs-keyword">case</span> <span class="hljs-string">&#x27;XLSX&#x27;</span>:<br>      emitter.<span class="hljs-title function_">emit</span>(<span class="hljs-string">&#x27;preview:pdf&#x27;</span>, data); <span class="hljs-keyword">break</span>;<br>    <span class="hljs-comment">// ...</span><br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="2-1-9-处具体设计债"><a href="#2-1-9-处具体设计债" class="headerlink" title="2.1 9 处具体设计债"></a>2.1 9 处具体设计债</h3><table>
+<thead>
+<tr>
+<th>#</th>
+<th>问题</th>
+<th>具体影响</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>模块级全局 <code>Map</code> 做 URL 缓存，没有 scope 隔离</td>
+<td>切换工作空间 &#x2F; 租户后，有概率命中旧 URL，数据串户</td>
+</tr>
+<tr>
+<td>2</td>
+<td>签名 URL 没有过期检测，拿到一次就用一辈子</td>
+<td>URL 过期后弹窗卡死或显示 403</td>
+</tr>
+<tr>
+<td>3</td>
+<td>没有 AbortController，用户关闭弹窗请求还在跑</td>
+<td>浪费带宽，且后到的响应可能污染 state</td>
+</tr>
+<tr>
+<td>4</td>
+<td>曾经打算在资源类型里挂 <code>blob</code> 字段</td>
+<td>大文件直接驻留内存，OOM 风险</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>switch (fileType)</code> 分发渲染器，硬编码在核心函数</td>
+<td>新增格式必须改核心代码，散弹修改</td>
+</tr>
+<tr>
+<td>6</td>
+<td>4 个弹窗各自实现 loading &#x2F; error UI，表现不一致</td>
+<td>用户体验割裂，维护成本 ×4</td>
+</tr>
+<tr>
+<td>7</td>
+<td>对超大文件无门禁，直接塞给三方库</td>
+<td>浏览器崩溃或长时间卡死</td>
+</tr>
+<tr>
+<td>8</td>
+<td>预览与”编辑文档”混在同一个入口</td>
+<td>职责不清，权限难做</td>
+</tr>
+<tr>
+<td>9</td>
+<td>大量早期遗留的 <code>previewStatus</code> 等字段已成死代码</td>
+<td>误导后续维护者</td>
+</tr>
+</tbody></table>
+<h3 id="2-2-根源分析"><a href="#2-2-根源分析" class="headerlink" title="2.2 根源分析"></a>2.2 根源分析</h3><p>这 9 条表面上是不同问题，本质归为三类：</p>
+<ol>
+<li><strong>缺乏分层</strong>：业务、展示、数据获取、生命周期混在一起</li>
+<li><strong>缺乏契约</strong>：没有稳定的类型边界，加字段就是改天下</li>
+<li><strong>缺乏扩展点</strong>：新格式 &#x3D; 改核心代码，而不是注册一个插件</li>
+</ol>
+<p>所以重构不是”修 bug”，是重新设计边界。</p>
+<h2 id="三、设计目标"><a href="#三、设计目标" class="headerlink" title="三、设计目标"></a>三、设计目标</h2><p>把 9 宗罪反推为 5 条设计原则：</p>
+<ol>
+<li><strong>单一职责</strong>：组件只做”拿到文件 → 拉取资源 → 渲染”，不涉及业务数据、权限、编辑</li>
+<li><strong>数据源可插拔</strong>：预览组件不直接调 API，调用方注入 <code>DataSource</code></li>
+<li><strong>渲染器可扩展</strong>：新格式通过 Registry 注册，无需改核心代码</li>
+<li><strong>跨子应用复用</strong>：基建（Registry &#x2F; Cache &#x2F; Abort）在各子应用间保持一致语义</li>
+<li><strong>安全可控</strong>：Abort 贯穿全链路，Scope 隔离缓存，签名 URL 过期校验，文件大小门禁可配</li>
+</ol>
+<p>几个<strong>明确的非目标</strong>（防止范围蔓延）：</p>
+<ul>
+<li>不做文件编辑</li>
+<li>不做文件上传</li>
+<li>不做权限判定（由调用方在数据源内完成）</li>
+<li>不做 SSR</li>
+<li>不做水印 &#x2F; 禁复制等合规增强（只留 hook 位）</li>
+</ul>
+<h2 id="四、整体架构"><a href="#四、整体架构" class="headerlink" title="四、整体架构"></a>四、整体架构</h2><h3 id="4-1-分层架构"><a href="#4-1-分层架构" class="headerlink" title="4.1 分层架构"></a>4.1 分层架构</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs nix">┌──────────────────────────────────────────────────────────────┐<br>│                   Public API Surface                         │<br>│  Host <span class="hljs-symbol">/</span> Dialog <span class="hljs-symbol">/</span> usePreview <span class="hljs-symbol">/</span> createRegistry <span class="hljs-symbol">/</span> 类型契约        │<br>├──────────────────────────────────────────────────────────────┤<br>│                      Shell Layer                             │<br>│  FilePreviewHost.vue   FilePreviewDialog.vue                 │<br>│  （状态机宿主 <span class="hljs-operator">+</span> 作用域插槽 <span class="hljs-operator">+</span> 默认 UI 壳）                        │<br>├──────────────────────────────────────────────────────────────┤<br>│                   Controller Layer                           │<br>│  createPreviewController                                     │<br>│  （编排 Registry × Cache × Validator × AbortGroup × DataSource）│<br>├──────────────────────────────────────────────────────────────┤<br>│                     Infra Layer                              │<br>│  Registry  |  Cache  |  AbortGroup  |  ResourceValidator     │<br>│  （纯函数式基建，可单测、可替换）                                 │<br>├──────────────────────────────────────────────────────────────┤<br>│                    Renderer Layer                            │<br>│  内置渲染器 × N（csv <span class="hljs-symbol">/</span> txt <span class="hljs-symbol">/</span> image <span class="hljs-symbol">/</span> xml <span class="hljs-symbol">/</span> markdown <span class="hljs-symbol">/</span> office）    │<br>│  （每个渲染器独立异步加载，不进主包）                              │<br>├──────────────────────────────────────────────────────────────┤<br>│                    Contract Layer                            │<br>│  types.ts — PreviewFile <span class="hljs-symbol">/</span> PreviewResource <span class="hljs-symbol">/</span> PreviewScope <span class="hljs-symbol">/</span>   │<br>│             PreviewDataSource <span class="hljs-symbol">/</span> PreviewRenderer <span class="hljs-symbol">/</span> PreviewState│<br>└──────────────────────────────────────────────────────────────┘<br></code></pre></td></tr></table></figure>
+
+<p>五层职责清晰：</p>
+<ul>
+<li><strong>Contract</strong>：稳定的类型边界，所有层对它写入</li>
+<li><strong>Infra</strong>：无状态基建，不 import Vue 也能单测</li>
+<li><strong>Renderer</strong>：每个格式一个组件，通过 Registry 注册，懒加载</li>
+<li><strong>Controller</strong>：把基建编排成”开一次预览”的完整流程（状态机）</li>
+<li><strong>Shell</strong>：Vue 组件层，提供默认弹窗 UI 和 composable API</li>
+</ul>
+<h3 id="4-2-跨子应用架构图"><a href="#4-2-跨子应用架构图" class="headerlink" title="4.2 跨子应用架构图"></a>4.2 跨子应用架构图</h3><p class="code-caption" data-lang="mermaid" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<pre><code class=" mermaid">flowchart TB
+  subgraph Shell[&quot;基座 Shell&quot;]
+    SB[bootstrap] --&gt; SR[创建 Registry]
+    SB --&gt; SS[创建 Shell 作用域]
+    SB --&gt; SP[app.provide × 2]
+    SP --&gt; SH[可选 Host]
+  end
+
+  subgraph SubApp1[&quot;子应用 A&quot;]
+    B1[bootstrap] --&gt; R1[独立 Registry]
+    B1 --&gt; C1[子应用作用域]
+    B1 --&gt; D1[业务 DataSource A]
+    B1 --&gt; P1[app.provide × 3]
+    P1 --&gt; H1[Host + Dialog]
+    H1 --&gt; U1[usePreview]
+  end
+
+  subgraph SubApp2[&quot;子应用 B&quot;]
+    B2[bootstrap] --&gt; H2[Host + Dialog]
+  end
+
+  subgraph Package[&quot;@your-org/file-preview&quot;]
+    Infra[Infra: Registry/Cache/Abort/Validator]
+    Ctrl[Controller 状态机]
+    Ren[内置渲染器]
+  end
+
+  SH --&gt; Ctrl
+  H1 --&gt; Ctrl
+  H2 --&gt; Ctrl
+  Ctrl --&gt; Infra
+  Ctrl --&gt; Ren
+</code></pre>
+
+<p><strong>关键约束</strong>：Vue 的 <code>provide / inject</code> 不跨越 micro-app 沙箱边界。每个子应用必须各自完整装配一次（Registry + Scope + DataSource + Host）。Shell 只服务自己的入口（比如全局搜索点附件），不替代子应用装配。</p>
+<h3 id="4-3-包内部模块分层"><a href="#4-3-包内部模块分层" class="headerlink" title="4.3 包内部模块分层"></a>4.3 包内部模块分层</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight dsconfig"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><code class="hljs dsconfig"><span class="hljs-string">file-preview</span>/<br>├── <span class="hljs-string">src</span>/<br>│   ├── <span class="hljs-string">keys</span>.<span class="hljs-string">ts</span>                     <span class="hljs-comment"># InjectionKey 定义</span><br>│   ├── <span class="hljs-string">types</span>.<span class="hljs-string">ts</span>                    <span class="hljs-comment"># 公共契约（全部 readonly）</span><br>│   ├── <span class="hljs-string">index</span>.<span class="hljs-string">ts</span>                    <span class="hljs-comment"># Public API 出口</span><br>│   ├── <span class="hljs-string">controller</span>/<br>│   │   └── <span class="hljs-string">controller</span>.<span class="hljs-string">ts</span>           <span class="hljs-comment"># 状态机编排</span><br>│   ├── <span class="hljs-string">composables</span>/<br>│   │   └── <span class="hljs-string">use-preview</span>.<span class="hljs-string">ts</span>          <span class="hljs-comment"># usePreview() 入口</span><br>│   ├── <span class="hljs-string">shell</span>/<br>│   │   ├── <span class="hljs-string">FilePreviewHost</span>.<span class="hljs-string">vue</span>     <span class="hljs-comment"># 状态机宿主</span><br>│   │   └── <span class="hljs-string">FilePreviewDialog</span>.<span class="hljs-string">vue</span>   <span class="hljs-comment"># 默认 UI 壳</span><br>│   ├── <span class="hljs-string">factories</span>/<br>│   │   └── <span class="hljs-built_in">create-preview-registry.ts</span><br>│   ├── <span class="hljs-string">infra</span>/<br>│   │   ├── <span class="hljs-string">registry</span>.<span class="hljs-string">ts</span>             <span class="hljs-comment"># 插件注册表</span><br>│   │   ├── <span class="hljs-string">cache</span>.<span class="hljs-string">ts</span>                <span class="hljs-comment"># LRU + scope.onInvalidate</span><br>│   │   ├── <span class="hljs-string">abort-group</span>.<span class="hljs-string">ts</span>          <span class="hljs-comment"># AbortController 独占池</span><br>│   │   └── <span class="hljs-string">resource-validator</span>.<span class="hljs-string">ts</span>   <span class="hljs-comment"># expiresAt + skewMs</span><br>│   ├── <span class="hljs-string">components</span>/<br>│   │   └── <span class="hljs-string">ErrorBoundary</span>.<span class="hljs-string">vue</span><br>│   └── <span class="hljs-string">renderers</span>/<br>│       ├── <span class="hljs-string">register-builtin</span>.<span class="hljs-string">ts</span><br>│       ├── <span class="hljs-string">CsvRenderer</span>.<span class="hljs-string">vue</span><br>│       ├── <span class="hljs-string">TxtImageRenderer</span>.<span class="hljs-string">vue</span><br>│       ├── <span class="hljs-string">XmlRenderer</span>.<span class="hljs-string">vue</span><br>│       ├── <span class="hljs-string">MarkdownRenderer</span>.<span class="hljs-string">vue</span><br>│       └── <span class="hljs-string">OfficeRenderer</span>.<span class="hljs-string">vue</span><br>└── <span class="hljs-string">package</span>.<span class="hljs-string">json</span><br></code></pre></td></tr></table></figure>
+
+<p>每个文件 &lt; 200 行，单一职责。Infra 层可以独立于 Vue 单元测试（Node 环境直接跑）。</p>
+<h3 id="4-4-预览生命周期时序"><a href="#4-4-预览生命周期时序" class="headerlink" title="4.4 预览生命周期时序"></a>4.4 预览生命周期时序</h3><p class="code-caption" data-lang="mermaid" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<pre><code class=" mermaid">sequenceDiagram
+  autonumber
+  participant Biz as 业务组件
+  participant UP as usePreview()
+  participant Ctrl as Controller
+  participant Reg as Registry
+  participant AG as AbortGroup
+  participant Cache as Cache
+  participant DS as DataSource
+  participant Dlg as Dialog + Renderer
+
+  Biz-&gt;&gt;UP: open(file)
+  UP-&gt;&gt;Ctrl: open(file)
+  Ctrl-&gt;&gt;Reg: resolve(file)
+  alt 未命中渲染器
+    Ctrl--&gt;&gt;Biz: state = unsupported
+  else 命中
+    Ctrl-&gt;&gt;AG: spawn() 旧 controller 自动 abort
+    Ctrl--&gt;&gt;Dlg: state = resolving
+    Ctrl-&gt;&gt;Cache: get(scope.key:file.id)
+    alt 缓存命中 + 未过期
+      Cache--&gt;&gt;Ctrl: resource
+    else 未命中 / 过期
+      Ctrl-&gt;&gt;DS: resolve(file, &#123; signal &#125;)
+      DS--&gt;&gt;Ctrl: resource &#123; url, expiresAt &#125;
+      Ctrl-&gt;&gt;Cache: set(key, resource)
+    end
+    Ctrl-&gt;&gt;Ctrl: shouldPreview 守卫（大小门禁等）
+    alt 守卫拒绝
+      Ctrl--&gt;&gt;Dlg: state = unsupported(reason)
+    else 放行
+      Ctrl--&gt;&gt;Dlg: state = rendering
+      Dlg-&gt;&gt;Dlg: defineAsyncComponent(loader)
+      Dlg--&gt;&gt;Ctrl: emit(&#x27;ready&#x27;)
+      Ctrl--&gt;&gt;Biz: state = ready
+    end
+  end
+
+  Note over Biz,Dlg: 关闭 / 切换 / 卸载
+  Biz-&gt;&gt;UP: close()
+  UP-&gt;&gt;Ctrl: close()
+  Ctrl-&gt;&gt;AG: abort()
+  AG--&gt;&gt;DS: signal.aborted = true
+  AG--&gt;&gt;Dlg: signal.aborted = true
+  Ctrl--&gt;&gt;Dlg: state = idle
+</code></pre>
+
+<p>核心状态机：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight gauss"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs gauss">idle ──<span class="hljs-keyword">open</span>──▶ resolving ──resolved──▶ rendering ──ready──▶ ready<br>  ▲                │                        │                │<br>  │                └──<span class="hljs-built_in">error</span>/abort──▶ <span class="hljs-built_in">error</span>  └──<span class="hljs-built_in">error</span>──▶ <span class="hljs-built_in">error</span><br>  │                                                          │<br>  │                                                          │<br>  └───────────────────── <span class="hljs-built_in">close</span>/dispose ─────────────────────┘<br>                                  │<br>                                  ▼<br>                              unsupported（资源无渲染器 / 守卫拒绝）<br></code></pre></td></tr></table></figure>
+
+<h2 id="五、核心契约设计"><a href="#五、核心契约设计" class="headerlink" title="五、核心契约设计"></a>五、核心契约设计</h2><p>类型契约是这套架构最稳定的部分。所有字段 <code>readonly</code>，强制不可变。</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">Component</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vue&#x27;</span>;<br><br><span class="hljs-comment">/** 文件描述符（调用方传入 open()） */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewFile</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">name</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">fileType</span>: <span class="hljs-built_in">string</span>;                   <span class="hljs-comment">// 业务自定义的类型编码</span><br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">size</span>?: <span class="hljs-built_in">number</span>;                      <span class="hljs-comment">// 可选，用于大小门禁</span><br>  <span class="hljs-keyword">readonly</span> [<span class="hljs-attr">extra</span>: <span class="hljs-built_in">string</span>]: <span class="hljs-built_in">unknown</span>;           <span class="hljs-comment">// 业务扩展字段</span><br>&#125;<br><br><span class="hljs-comment">/** 预览资源（DataSource 返回；禁止 blob 字段） */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewResource</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">mimeType</span>?: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">expiresAt</span>?: <span class="hljs-built_in">number</span>;                 <span class="hljs-comment">// ms since epoch，后端下发</span><br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">encoding</span>?: <span class="hljs-string">&#x27;utf-8&#x27;</span> | <span class="hljs-string">&#x27;gbk&#x27;</span> | <span class="hljs-string">&#x27;auto&#x27;</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">meta</span>?: <span class="hljs-title class_">Readonly</span>&lt;<span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">unknown</span>&gt;&gt;;<br>&#125;<br><br><span class="hljs-comment">/** 数据源（调用方实现，通过 provide 注入） */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewDataSource</span> &#123;<br>  <span class="hljs-title function_">resolve</span>(<br>    <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>,<br>    <span class="hljs-attr">ctx</span>: &#123; <span class="hljs-attr">signal</span>: <span class="hljs-title class_">AbortSignal</span> &#125;<br>  ): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-title class_">PreviewResource</span>&gt;;<br>&#125;<br><br><span class="hljs-comment">/** 作用域（给缓存分租 + 身份失效广播） */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-title function_">getKey</span>(): <span class="hljs-built_in">string</span>;                            <span class="hljs-comment">// 通常 `$&#123;tenantId&#125;::$&#123;workspaceId&#125;`</span><br>  <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-attr">cb</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>): <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>;<br>&#125;<br><br><span class="hljs-comment">/** 渲染器插件 */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewRenderer</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">name</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">accepts</span>: <span class="hljs-keyword">readonly</span> <span class="hljs-built_in">string</span>[] | (<span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span></span>) =&gt;</span> <span class="hljs-built_in">boolean</span>);<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">priority</span>?: <span class="hljs-built_in">number</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">loader</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-title class_">Promise</span>&lt;&#123; <span class="hljs-attr">default</span>: <span class="hljs-title class_">Component</span> &#125;&gt;;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">shouldPreview</span>?: <span class="hljs-function">(<span class="hljs-params"></span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>,</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span></span></span><br><span class="hljs-params"><span class="hljs-function">  </span>) =&gt;</span> <span class="hljs-built_in">boolean</span> | <span class="hljs-built_in">string</span>;                       <span class="hljs-comment">// string 作为&quot;不可预览&quot;理由展示</span><br>&#125;<br><br><span class="hljs-comment">/** 渲染器组件必须接收的 props */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewRendererProps</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">signal</span>: <span class="hljs-title class_">AbortSignal</span>;<br>&#125;<br><br><span class="hljs-comment">/** 渲染器组件必须声明的 emits */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">type</span> <span class="hljs-title class_">PreviewRendererEmits</span> = &#123;<br>  (<span class="hljs-attr">e</span>: <span class="hljs-string">&#x27;ready&#x27;</span>): <span class="hljs-built_in">void</span>;<br>  (<span class="hljs-attr">e</span>: <span class="hljs-string">&#x27;error&#x27;</span>, <span class="hljs-attr">err</span>: <span class="hljs-title class_">Error</span>): <span class="hljs-built_in">void</span>;<br>  (<span class="hljs-attr">e</span>: <span class="hljs-string">&#x27;request-close&#x27;</span>): <span class="hljs-built_in">void</span>;<br>&#125;;<br><br><span class="hljs-comment">/** Host 对外暴露的状态机 */</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">type</span> <span class="hljs-title class_">PreviewState</span> =<br>  | &#123; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;idle&#x27;</span> &#125;<br>  | &#123; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;resolving&#x27;</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span> &#125;<br>  | &#123; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;rendering&#x27;</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span> &#125;<br>  | &#123; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;ready&#x27;</span>;     <span class="hljs-keyword">readonly</span> <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span> &#125;<br>  | &#123; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;error&#x27;</span>;     <span class="hljs-keyword">readonly</span> <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">error</span>: <span class="hljs-title class_">Error</span> &#125;<br>  | &#123; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;unsupported&#x27;</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>; <span class="hljs-keyword">readonly</span> <span class="hljs-attr">reason</span>?: <span class="hljs-built_in">string</span> &#125;;<br></code></pre></td></tr></table></figure>
+
+<h3 id="5-1-五个设计要点"><a href="#5-1-五个设计要点" class="headerlink" title="5.1 五个设计要点"></a>5.1 五个设计要点</h3><p><strong>要点 1：禁止 <code>blob</code> 字段</strong></p>
+<p>如果允许 <code>PreviewResource.blob: Blob</code>，大文件会被整份加载进内存，GC 不回收。改成<strong>只走 URL</strong>，渲染器自己决定怎么 fetch（流式、range、虚拟滚动都在渲染器内部完成）。</p>
+<p><strong>要点 2：<code>shouldPreview</code> 返回 string 作为拒绝理由</strong></p>
+<p>比 <code>boolean</code> 多一种表达：”不是不支持，是有条件地拒绝”。例如 Office 渲染器返回 <code>&quot;文件过大（120MB），请下载后查看&quot;</code>，UI 直接把这串文案展示给用户，语义比”不支持该文件类型”准确。</p>
+<p><strong>要点 3：signal 必传到渲染器</strong></p>
+<p>渲染器内部 fetch &#x2F; WebWorker &#x2F; setTimeout 都要尊重这个 signal，这是全链路 abort 的前提。</p>
+<p><strong>要点 4：<code>fileType</code> 不绑扩展名</strong></p>
+<p>后端可能给 <code>fileType: &#39;CSV&#39;</code>、也可能给 <code>&#39;text/csv&#39;</code>、甚至自定义编码。<code>accepts</code> 支持谓词（函数）可以任意匹配。</p>
+<p><strong>要点 5：<code>PreviewState</code> 是 discriminated union</strong></p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">if</span> (state.<span class="hljs-property">kind</span> === <span class="hljs-string">&#x27;ready&#x27;</span>) &#123;<br>  state.<span class="hljs-property">file</span>;        <span class="hljs-comment">// OK</span><br>  state.<span class="hljs-property">resource</span>;    <span class="hljs-comment">// OK</span><br>&#125;<br><span class="hljs-keyword">if</span> (state.<span class="hljs-property">kind</span> === <span class="hljs-string">&#x27;idle&#x27;</span>) &#123;<br>  state.<span class="hljs-property">file</span>;        <span class="hljs-comment">// 编译错误</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>TypeScript 会自动收窄字段可见性，UI 层无需手动判空。</p>
+<h2 id="六、Registry-插件机制"><a href="#六、Registry-插件机制" class="headerlink" title="六、Registry 插件机制"></a>六、Registry 插件机制</h2><h3 id="6-1-接口设计"><a href="#6-1-接口设计" class="headerlink" title="6.1 接口设计"></a>6.1 接口设计</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewRegistry</span> &#123;<br>  <span class="hljs-title function_">register</span>(<span class="hljs-attr">renderer</span>: <span class="hljs-title class_">PreviewRenderer</span>): <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>;   <span class="hljs-comment">// 返回反注册函数</span><br>  <span class="hljs-title function_">resolve</span>(<span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>): <span class="hljs-title class_">PreviewRenderer</span> | <span class="hljs-literal">null</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">size</span>: <span class="hljs-built_in">number</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>三个方法覆盖所有场景：</p>
+<ul>
+<li><code>register</code> 返回反注册函数（<strong>自带清理</strong>），适合在 <code>onMounted</code> 注册 + <code>onUnmounted</code> 清理</li>
+<li><code>resolve</code> 返回 <code>PreviewRenderer | null</code>，匹配不到直接进入 unsupported 态</li>
+<li><code>size</code> 暴露只读计数，便于调试和单测断言</li>
+</ul>
+<h3 id="6-2-匹配策略"><a href="#6-2-匹配策略" class="headerlink" title="6.2 匹配策略"></a>6.2 匹配策略</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createPreviewRegistry = (): <span class="hljs-function"><span class="hljs-params">PreviewRegistry</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> renderers = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-title class_">PreviewRenderer</span>&gt;();<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">register</span>(<span class="hljs-params">renderer</span>) &#123;<br>      <span class="hljs-keyword">if</span> (renderers.<span class="hljs-title function_">has</span>(renderer.<span class="hljs-property">name</span>)) &#123;<br>        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(<span class="hljs-string">`[preview] 渲染器名称冲突: <span class="hljs-subst">$&#123;renderer.name&#125;</span>`</span>);<br>      &#125;<br>      renderers.<span class="hljs-title function_">set</span>(renderer.<span class="hljs-property">name</span>, renderer);<br>      <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> &#123;<br>        renderers.<span class="hljs-title function_">delete</span>(renderer.<span class="hljs-property">name</span>);<br>      &#125;;<br>    &#125;,<br>    <span class="hljs-title function_">resolve</span>(<span class="hljs-params">file</span>) &#123;<br>      <span class="hljs-keyword">const</span> <span class="hljs-attr">candidates</span>: <span class="hljs-title class_">PreviewRenderer</span>[] = [];<br>      <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> r <span class="hljs-keyword">of</span> renderers.<span class="hljs-title function_">values</span>()) &#123;<br>        <span class="hljs-keyword">const</span> match = <span class="hljs-keyword">typeof</span> r.<span class="hljs-property">accepts</span> === <span class="hljs-string">&#x27;function&#x27;</span><br>          ? r.<span class="hljs-title function_">accepts</span>(file)<br>          : r.<span class="hljs-property">accepts</span>.<span class="hljs-title function_">some</span>(<span class="hljs-function"><span class="hljs-params">t</span> =&gt;</span><br>              t.<span class="hljs-title function_">toLowerCase</span>() === file.<span class="hljs-property">fileType</span>.<span class="hljs-title function_">toLowerCase</span>() ||<br>              file.<span class="hljs-property">name</span>.<span class="hljs-title function_">toLowerCase</span>().<span class="hljs-title function_">endsWith</span>(<span class="hljs-string">&#x27;.&#x27;</span> + t.<span class="hljs-title function_">toLowerCase</span>())<br>            );<br>        <span class="hljs-keyword">if</span> (match) candidates.<span class="hljs-title function_">push</span>(r);<br>      &#125;<br>      <span class="hljs-keyword">if</span> (candidates.<span class="hljs-property">length</span> === <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;<br>      candidates.<span class="hljs-title function_">sort</span>(<span class="hljs-function">(<span class="hljs-params">a, b</span>) =&gt;</span> (b.<span class="hljs-property">priority</span> ?? <span class="hljs-number">0</span>) - (a.<span class="hljs-property">priority</span> ?? <span class="hljs-number">0</span>));<br>      <span class="hljs-keyword">return</span> candidates[<span class="hljs-number">0</span>];<br>    &#125;,<br>    <span class="hljs-keyword">get</span> <span class="hljs-title function_">size</span>() &#123; <span class="hljs-keyword">return</span> renderers.<span class="hljs-property">size</span>; &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p><strong>三个决策</strong>：</p>
+<ol>
+<li><strong>同名注册直接抛错</strong>：避免静默覆盖造成的”幽灵 bug”</li>
+<li><strong>优先级大者胜</strong>：业务方可以用更高 priority 覆盖内置渲染器</li>
+<li><strong><code>accepts</code> 支持 string[] 或谓词</strong>：string[] 足够简单场景，谓词覆盖复杂匹配（如 <code>(file) =&gt; /\.(mo|modelica)$/i.test(file.name)</code>）</li>
+</ol>
+<h3 id="6-3-运行期扩展示例"><a href="#6-3-运行期扩展示例" class="headerlink" title="6.3 运行期扩展示例"></a>6.3 运行期扩展示例</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> &#123; inject, onMounted, onUnmounted &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vue&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; <span class="hljs-title class_">PreviewRegistryKey</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@your-org/file-preview&#x27;</span>;<br><br><span class="hljs-keyword">const</span> registry = <span class="hljs-title function_">inject</span>(<span class="hljs-title class_">PreviewRegistryKey</span>)!;<br><br><span class="hljs-title function_">onMounted</span>(<span class="hljs-function">() =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> unreg = registry.<span class="hljs-title function_">register</span>(&#123;<br>    <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;cad&#x27;</span>,<br>    <span class="hljs-attr">accepts</span>: <span class="hljs-function"><span class="hljs-params">file</span> =&gt;</span> <span class="hljs-regexp">/\.(dwg|dxf)$/i</span>.<span class="hljs-title function_">test</span>(file.<span class="hljs-property">name</span>),<br>    <span class="hljs-attr">priority</span>: <span class="hljs-number">50</span>,                       <span class="hljs-comment">// &gt; 内置渲染器默认的 10</span><br>    <span class="hljs-attr">loader</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">&#x27;./CadRenderer.vue&#x27;</span>)<br>  &#125;);<br>  <span class="hljs-title function_">onUnmounted</span>(unreg);                   <span class="hljs-comment">// 业务组件卸载自动清理</span><br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<h2 id="七、Controller-状态机"><a href="#七、Controller-状态机" class="headerlink" title="七、Controller 状态机"></a>七、Controller 状态机</h2><p>状态机是这套架构的心脏——把四个基建编排成”一次预览”的完整流程。</p>
+<h3 id="7-1-接口"><a href="#7-1-接口" class="headerlink" title="7.1 接口"></a>7.1 接口</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewController</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">state</span>: <span class="hljs-title class_">ComputedRef</span>&lt;<span class="hljs-title class_">PreviewState</span>&gt;;<br>  <span class="hljs-title function_">open</span>(<span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;<br>  <span class="hljs-title function_">close</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">markReady</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">markError</span>(<span class="hljs-attr">err</span>: <span class="hljs-title class_">Error</span>): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">currentRenderer</span>: <span class="hljs-title class_">ComputedRef</span>&lt;<span class="hljs-title class_">PreviewRenderer</span> | <span class="hljs-literal">null</span>&gt;;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">currentSignal</span>: <span class="hljs-title class_">ComputedRef</span>&lt;<span class="hljs-title class_">AbortSignal</span> | <span class="hljs-literal">null</span>&gt;;<br>  <span class="hljs-title function_">dispose</span>(): <span class="hljs-built_in">void</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>五个角色：</p>
+<ul>
+<li><code>open / close</code>：业务入口</li>
+<li><code>markReady / markError</code>：由 Host 代渲染器调（渲染器只 emit，Host 转调）</li>
+<li><code>dispose</code>：Host 卸载时调，清理所有副作用</li>
+</ul>
+<h3 id="7-2-open-的完整流程"><a href="#7-2-open-的完整流程" class="headerlink" title="7.2 open 的完整流程"></a>7.2 open 的完整流程</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">const</span> <span class="hljs-attr">open</span>: <span class="hljs-title class_">PreviewController</span>[<span class="hljs-string">&#x27;open&#x27;</span>] = <span class="hljs-keyword">async</span> file =&gt; &#123;<br>  <span class="hljs-comment">// 1. 匹配渲染器</span><br>  <span class="hljs-keyword">const</span> renderer = registry.<span class="hljs-title function_">resolve</span>(file);<br>  <span class="hljs-keyword">if</span> (!renderer) &#123;<br>    <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;unsupported&#x27;</span>, file &#125;);<br>    <span class="hljs-keyword">return</span>;<br>  &#125;<br><br>  <span class="hljs-comment">// 2. 校验数据源</span><br>  <span class="hljs-keyword">if</span> (!dataSource) &#123;<br>    <span class="hljs-title function_">setState</span>(&#123;<br>      <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;error&#x27;</span>,<br>      file,<br>      <span class="hljs-attr">error</span>: <span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(<span class="hljs-string">&#x27;[preview] PreviewDataSource 未注入。&#x27;</span>)<br>    &#125;);<br>    <span class="hljs-keyword">return</span>;<br>  &#125;<br><br>  <span class="hljs-comment">// 3. 发放新 signal（旧 signal 自动 abort）</span><br>  <span class="hljs-keyword">const</span> controller = abortGroup.<span class="hljs-title function_">spawn</span>();<br>  <span class="hljs-keyword">const</span> signal = controller.<span class="hljs-property">signal</span>;<br>  rendererRef.<span class="hljs-property">value</span> = renderer;<br>  signalRef.<span class="hljs-property">value</span> = signal;<br>  <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;resolving&#x27;</span>, file &#125;);<br><br>  <span class="hljs-keyword">try</span> &#123;<br>    <span class="hljs-comment">// 4. 取资源（走缓存 or 调 DataSource）</span><br>    <span class="hljs-keyword">const</span> resource = <span class="hljs-keyword">await</span> <span class="hljs-title function_">fetchResource</span>(file, signal, dataSource);<br>    <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;<br><br>    <span class="hljs-comment">// 5. shouldPreview 守卫</span><br>    <span class="hljs-keyword">if</span> (renderer.<span class="hljs-property">shouldPreview</span>) &#123;<br>      <span class="hljs-keyword">const</span> guard = renderer.<span class="hljs-title function_">shouldPreview</span>(file, resource);<br>      <span class="hljs-keyword">if</span> (guard === <span class="hljs-literal">false</span> || <span class="hljs-keyword">typeof</span> guard === <span class="hljs-string">&#x27;string&#x27;</span>) &#123;<br>        <span class="hljs-title function_">setState</span>(&#123;<br>          <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;unsupported&#x27;</span>,<br>          file,<br>          <span class="hljs-attr">reason</span>: <span class="hljs-keyword">typeof</span> guard === <span class="hljs-string">&#x27;string&#x27;</span> ? guard : <span class="hljs-literal">undefined</span><br>        &#125;);<br>        <span class="hljs-keyword">return</span>;<br>      &#125;<br>    &#125;<br><br>    <span class="hljs-comment">// 6. 进入渲染态</span><br>    <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;rendering&#x27;</span>, file, resource &#125;);<br>  &#125; <span class="hljs-keyword">catch</span> (err) &#123;<br>    <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;              <span class="hljs-comment">// abort 不算错</span><br>    <span class="hljs-keyword">const</span> e = err <span class="hljs-keyword">instanceof</span> <span class="hljs-title class_">Error</span> ? err : <span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(<span class="hljs-title class_">String</span>(err));<br>    <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;error&#x27;</span>, file, <span class="hljs-attr">error</span>: e &#125;);<br>  &#125;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>六步都有明确职责，任何一步失败都有对应的状态终点。</p>
+<h3 id="7-3-两条”abort-分支-early-return”规则"><a href="#7-3-两条”abort-分支-early-return”规则" class="headerlink" title="7.3 两条”abort 分支 early return”规则"></a>7.3 两条”abort 分支 early return”规则</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 在 await 之后，在 setState 之前</span><br></code></pre></td></tr></table></figure>
+
+<p>这行代码在 <code>open</code> 里出现两次：</p>
+<ul>
+<li>成功分支：如果等待 DataSource 期间被 abort，拿到的 resource 不要再 setState</li>
+<li>失败分支：如果抛的是 AbortError，不要设置 <code>error</code> 态</li>
+</ul>
+<p><strong>遵守这两条，整个状态机就不会被幽灵请求污染</strong>。违反任一条就会出现”关闭弹窗后 UI 闪过一个错误状态”。</p>
+<h3 id="7-4-fetchResource-的四步"><a href="#7-4-fetchResource-的四步" class="headerlink" title="7.4 fetchResource 的四步"></a>7.4 fetchResource 的四步</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">const</span> fetchResource = <span class="hljs-title function_">async</span> (file, signal, source): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-title class_">PreviewResource</span>&gt; =&gt; &#123;<br>  <span class="hljs-keyword">const</span> cached = cache.<span class="hljs-title function_">get</span>(file.<span class="hljs-property">id</span>);<br>  <span class="hljs-keyword">if</span> (cached &amp;&amp; !validator.<span class="hljs-title function_">isExpired</span>(cached)) &#123;<br>    <span class="hljs-keyword">return</span> cached;                            <span class="hljs-comment">// 1. 命中且有效</span><br>  &#125;<br>  <span class="hljs-keyword">if</span> (cached) cache.<span class="hljs-title function_">delete</span>(file.<span class="hljs-property">id</span>);          <span class="hljs-comment">// 2. 命中但过期 → 删</span><br>  <span class="hljs-keyword">const</span> resource = <span class="hljs-keyword">await</span> source.<span class="hljs-title function_">resolve</span>(file, &#123; signal &#125;);<br>  cache.<span class="hljs-title function_">set</span>(file.<span class="hljs-property">id</span>, resource);               <span class="hljs-comment">// 3. 新值写入</span><br>  <span class="hljs-keyword">return</span> resource;                            <span class="hljs-comment">// 4. 返回</span><br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>这个函数把”读缓存 &#x2F; 过期重取 &#x2F; 写缓存”三个动作收敛在一起，<code>open</code> 只需要调用一次就能拿到新鲜资源。</p>
+<h2 id="八、基建层四件套"><a href="#八、基建层四件套" class="headerlink" title="八、基建层四件套"></a>八、基建层四件套</h2><h3 id="8-1-Registry（见第六章）"><a href="#8-1-Registry（见第六章）" class="headerlink" title="8.1 Registry（见第六章）"></a>8.1 Registry（见第六章）</h3><h3 id="8-2-Scope-aware-Cache"><a href="#8-2-Scope-aware-Cache" class="headerlink" title="8.2 Scope-aware Cache"></a>8.2 Scope-aware Cache</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createPreviewCache = (<br>  <span class="hljs-attr">scope</span>: <span class="hljs-title class_">PreviewScope</span>,<br>  <span class="hljs-attr">opts</span>: <span class="hljs-title class_">PreviewCacheOptions</span> = &#123;&#125;<br>): <span class="hljs-function"><span class="hljs-params">PreviewCache</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> limit = opts.<span class="hljs-property">limit</span> &amp;&amp; opts.<span class="hljs-property">limit</span> &gt; <span class="hljs-number">0</span> ? opts.<span class="hljs-property">limit</span> : <span class="hljs-number">20</span>;<br>  <span class="hljs-keyword">const</span> store = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-title class_">PreviewResource</span>&gt;();<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">buildKey</span> = (<span class="hljs-params"><span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span></span>) =&gt; <span class="hljs-string">`<span class="hljs-subst">$&#123;scope.getKey()&#125;</span>:<span class="hljs-subst">$&#123;fileId&#125;</span>`</span>;<br>  <span class="hljs-keyword">const</span> unsubscribe = scope.<span class="hljs-title function_">onInvalidate</span>(<span class="hljs-function">() =&gt;</span> store.<span class="hljs-title function_">clear</span>());<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">touch</span> = (<span class="hljs-params"><span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">value</span>: <span class="hljs-title class_">PreviewResource</span></span>) =&gt; &#123;<br>    store.<span class="hljs-title function_">delete</span>(key);<br>    store.<span class="hljs-title function_">set</span>(key, value);                    <span class="hljs-comment">// LRU：把 key 移到 Map 尾部</span><br>  &#125;;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">get</span>(<span class="hljs-params">fileId</span>) &#123;<br>      <span class="hljs-keyword">const</span> key = <span class="hljs-title function_">buildKey</span>(fileId);<br>      <span class="hljs-keyword">const</span> v = store.<span class="hljs-title function_">get</span>(key);<br>      <span class="hljs-keyword">if</span> (v) <span class="hljs-title function_">touch</span>(key, v);                   <span class="hljs-comment">// 访问也算一次&quot;使用&quot;</span><br>      <span class="hljs-keyword">return</span> v;<br>    &#125;,<br>    <span class="hljs-title function_">set</span>(<span class="hljs-params">fileId, resource</span>) &#123;<br>      <span class="hljs-keyword">const</span> key = <span class="hljs-title function_">buildKey</span>(fileId);<br>      <span class="hljs-title function_">touch</span>(key, resource);<br>      <span class="hljs-keyword">while</span> (store.<span class="hljs-property">size</span> &gt; limit) &#123;<br>        <span class="hljs-keyword">const</span> first = store.<span class="hljs-title function_">keys</span>().<span class="hljs-title function_">next</span>();<br>        <span class="hljs-keyword">if</span> (first.<span class="hljs-property">done</span>) <span class="hljs-keyword">break</span>;<br>        store.<span class="hljs-title function_">delete</span>(first.<span class="hljs-property">value</span>);            <span class="hljs-comment">// 淘汰最老的</span><br>      &#125;<br>    &#125;,<br>    <span class="hljs-title function_">delete</span>(<span class="hljs-params">fileId</span>) &#123; store.<span class="hljs-title function_">delete</span>(<span class="hljs-title function_">buildKey</span>(fileId)); &#125;,<br>    <span class="hljs-title function_">clear</span>(<span class="hljs-params"></span>) &#123; store.<span class="hljs-title function_">clear</span>(); &#125;,<br>    <span class="hljs-title function_">dispose</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-title function_">unsubscribe</span>();                          <span class="hljs-comment">// 取消订阅，防止泄漏</span><br>      store.<span class="hljs-title function_">clear</span>();<br>    &#125;,<br>    <span class="hljs-keyword">get</span> <span class="hljs-title function_">size</span>() &#123; <span class="hljs-keyword">return</span> store.<span class="hljs-property">size</span>; &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>四个设计决策：</p>
+<ol>
+<li><strong>原生 Map 充当 LRU</strong>：Map 保留插入顺序 → 头部即”最老”，尾部即”最新”</li>
+<li><strong>key 拼接 scope</strong>：身份维度内生到 key 里，scope 变了新 key 不会命中旧 entry（被动防护）</li>
+<li><strong>onInvalidate 清空</strong>：scope 变化时主动清（主动防护）</li>
+<li><strong>dispose 取消订阅</strong>：Host 卸载后避免 scope 持有野引用</li>
+</ol>
+<p>被动 + 主动 + dispose 三重保险。</p>
+<h3 id="8-3-ResourceValidator"><a href="#8-3-ResourceValidator" class="headerlink" title="8.3 ResourceValidator"></a>8.3 ResourceValidator</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createResourceValidator = (<br>  <span class="hljs-attr">opts</span>: <span class="hljs-title class_">ResourceValidatorOptions</span> = &#123;&#125;<br>): <span class="hljs-function"><span class="hljs-params">ResourceValidator</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> skew = opts.<span class="hljs-property">skewMs</span> ?? <span class="hljs-number">30_000</span>;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">isExpired</span>(<span class="hljs-params">resource</span>) &#123;<br>      <span class="hljs-keyword">if</span> (resource.<span class="hljs-property">expiresAt</span> === <span class="hljs-literal">undefined</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>      <span class="hljs-keyword">return</span> resource.<span class="hljs-property">expiresAt</span> - <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>() &lt; skew;<br>    &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>三条核心决策：</p>
+<ol>
+<li>**依赖后端下发的 <code>expiresAt</code>**：而非前端 TTL 猜测</li>
+<li><strong>提供 <code>skewMs</code> 抖动边界</strong>：默认 30s 提前判定，避免临界态 403</li>
+<li><strong><code>expiresAt === undefined</code> 视为永不过期</strong>：兼容后端没接过期字段的场景</li>
+</ol>
+<h3 id="8-4-AbortGroup"><a href="#8-4-AbortGroup" class="headerlink" title="8.4 AbortGroup"></a>8.4 AbortGroup</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createAbortGroup = (): <span class="hljs-function"><span class="hljs-params">AbortGroup</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">let</span> <span class="hljs-attr">current</span>: <span class="hljs-title class_">AbortController</span> | <span class="hljs-literal">null</span> = <span class="hljs-literal">null</span>;<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">safeAbort</span> = (<span class="hljs-params"><span class="hljs-attr">c</span>: <span class="hljs-title class_">AbortController</span> | <span class="hljs-literal">null</span></span>) =&gt; &#123;<br>    <span class="hljs-keyword">if</span> (!c || c.<span class="hljs-property">signal</span>.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;<br>    c.<span class="hljs-title function_">abort</span>();<br>  &#125;;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">spawn</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-title function_">safeAbort</span>(current);                     <span class="hljs-comment">// 旧的自动 abort</span><br>      current = <span class="hljs-keyword">new</span> <span class="hljs-title class_">AbortController</span>();<br>      <span class="hljs-keyword">return</span> current;<br>    &#125;,<br>    <span class="hljs-title function_">abort</span>(<span class="hljs-params"></span>) &#123; <span class="hljs-title function_">safeAbort</span>(current); &#125;,<br>    <span class="hljs-keyword">get</span> <span class="hljs-title function_">isAborted</span>() &#123; <span class="hljs-keyword">return</span> current?.<span class="hljs-property">signal</span>.<span class="hljs-property">aborted</span> ?? <span class="hljs-literal">false</span>; &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>关键语义：<strong>独占</strong>。同时最多有一个”活的” controller。每次 <code>spawn</code> 自动 abort 上一个。</p>
+<p>这一行代码直接解决了”用户快速切换文件”场景：前一次 fetch 还没回来，新一次 open 把它 abort 掉，结果不会污染 state。</p>
+<h2 id="九、Host-Dialog-外壳层"><a href="#九、Host-Dialog-外壳层" class="headerlink" title="九、Host + Dialog 外壳层"></a>九、Host + Dialog 外壳层</h2><h3 id="9-1-Host：状态机宿主"><a href="#9-1-Host：状态机宿主" class="headerlink" title="9.1 Host：状态机宿主"></a>9.1 Host：状态机宿主</h3><p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;!-- FilePreviewHost.vue --&gt;<br>&lt;template&gt;<br>  &lt;slot<br>    :state=&quot;controller.state.value&quot;<br>    :open=&quot;controller.open&quot;<br>    :close=&quot;controller.close&quot;<br>  &gt;<br>    &lt;FilePreviewDialog /&gt;<br>  &lt;/slot&gt;<br>&lt;/template&gt;<br><br>&lt;script setup lang=&quot;ts&quot;&gt;<br>import &#123; inject, onBeforeUnmount, provide &#125; from &#x27;vue&#x27;;<br>import &#123;<br>  PreviewControllerKey,<br>  PreviewDataSourceKey,<br>  PreviewRegistryKey,<br>  PreviewScopeKey<br>&#125; from &#x27;../keys&#x27;;<br>import &#123; createPreviewController &#125; from &#x27;../controller/controller&#x27;;<br>import FilePreviewDialog from &#x27;./FilePreviewDialog.vue&#x27;;<br><br>const registry = inject(PreviewRegistryKey, null);<br>const dataSource = inject(PreviewDataSourceKey, null);<br>const scope = inject(PreviewScopeKey, null);<br><br>if (!registry) throw new Error(&#x27;[preview] 缺少 PreviewRegistry&#x27;);<br>if (!scope)    throw new Error(&#x27;[preview] 缺少 PreviewScope&#x27;);<br>// dataSource 允许为 null（有些 Host 在 shell 层预挂载，open 时才有业务数据源）<br><br>const controller = createPreviewController(&#123; registry, dataSource, scope &#125;);<br><br>provide(PreviewControllerKey, controller);<br><br>onBeforeUnmount(() =&gt; &#123;<br>  controller.dispose();                       // 自动清理：abort + 取消订阅 + 清缓存<br>&#125;);<br>&lt;/script&gt;<br></code></pre></td></tr></table></figure>
+
+<p>三个设计决策：</p>
+<ol>
+<li><strong>作用域插槽</strong>：把 <code>&#123; state, open, close &#125;</code> 暴露给父组件，方便自定义 UI（而不是只能用默认 Dialog）</li>
+<li>**默认 fallback 渲染 <code>&lt;FilePreviewDialog /&gt;</code>**：不写 slot 时也能直接用</li>
+<li>**<code>onBeforeUnmount</code> 调 <code>dispose</code>**：组件级生命周期 &#x3D; controller 生命周期</li>
+</ol>
+<h3 id="9-2-Dialog：默认-UI-壳"><a href="#9-2-Dialog：默认-UI-壳" class="headerlink" title="9.2 Dialog：默认 UI 壳"></a>9.2 Dialog：默认 UI 壳</h3><p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;template&gt;<br>  &lt;el-dialog<br>    v-model=&quot;visible&quot;<br>    fullscreen<br>    :show-close=&quot;false&quot;<br>    :close-on-click-modal=&quot;false&quot;<br>    :destroy-on-close=&quot;true&quot;<br>    @closed=&quot;onClosed&quot;<br>  &gt;<br>    &lt;div class=&quot;body&quot;&gt;<br>      &lt;template v-if=&quot;state.kind === &#x27;resolving&#x27;&quot;&gt;<br>        &lt;div&gt;加载中…&lt;/div&gt;<br>      &lt;/template&gt;<br><br>      &lt;template v-else-if=&quot;state.kind === &#x27;rendering&#x27; || state.kind === &#x27;ready&#x27;&quot;&gt;<br>        &lt;PreviewErrorBoundary v-if=&quot;signal &amp;&amp; renderer&quot; @error=&quot;onRendererError&quot;&gt;<br>          &lt;component<br>            :is=&quot;resolvedRenderer&quot;<br>            :file=&quot;state.file&quot;<br>            :resource=&quot;state.resource&quot;<br>            :signal=&quot;signal&quot;<br>            @ready=&quot;onRendererReady&quot;<br>            @error=&quot;onRendererError&quot;<br>            @request-close=&quot;onCancel&quot;<br>          /&gt;<br>        &lt;/PreviewErrorBoundary&gt;<br>      &lt;/template&gt;<br><br>      &lt;template v-else-if=&quot;state.kind === &#x27;error&#x27;&quot;&gt;<br>        预览失败：&#123;&#123; state.error.message &#125;&#125;<br>      &lt;/template&gt;<br><br>      &lt;template v-else-if=&quot;state.kind === &#x27;unsupported&#x27;&quot;&gt;<br>        &#123;&#123; state.reason ?? &#x27;暂不支持该文件类型预览，请下载后查看。&#x27; &#125;&#125;<br>      &lt;/template&gt;<br>    &lt;/div&gt;<br>  &lt;/el-dialog&gt;<br>&lt;/template&gt;<br></code></pre></td></tr></table></figure>
+
+<p>几个关键点：</p>
+<ul>
+<li><strong>状态驱动 UI</strong>：没有 <code>if (loading) ... else if (error) ...</code> 散乱判断，只按 <code>state.kind</code> 分支</li>
+<li><strong>渲染器 lazy load</strong>：<code>defineAsyncComponent(renderer.loader)</code>，不进主包</li>
+<li><strong>PreviewErrorBoundary 兜底</strong>：渲染器 throw 也不会白屏</li>
+<li>**<code>destroy-on-close</code>**：关闭即销毁渲染器实例，释放内存</li>
+</ul>
+<h3 id="9-3-usePreview：业务入口"><a href="#9-3-usePreview：业务入口" class="headerlink" title="9.3 usePreview：业务入口"></a>9.3 usePreview：业务入口</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> usePreview = (): <span class="hljs-function"><span class="hljs-params">UsePreviewApi</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> controller = <span class="hljs-title function_">inject</span>(<span class="hljs-title class_">PreviewControllerKey</span>, <span class="hljs-literal">null</span>);<br>  <span class="hljs-keyword">if</span> (!controller) &#123;<br>    <span class="hljs-keyword">return</span> &#123;<br>      <span class="hljs-attr">state</span>: <span class="hljs-title function_">computed</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-variable constant_">IDLE</span>),<br>      <span class="hljs-keyword">async</span> <span class="hljs-title function_">open</span>(<span class="hljs-params"></span>) &#123;<br>        <span class="hljs-title function_">warnOnce</span>(<span class="hljs-string">&#x27;[preview] usePreview() 调用时未检测到 &lt;FilePreviewHost&gt;&#x27;</span>);<br>      &#125;,<br>      <span class="hljs-title function_">close</span>(<span class="hljs-params"></span>) &#123; <span class="hljs-comment">/* no-op */</span> &#125;<br>    &#125;;<br>  &#125;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-attr">state</span>: controller.<span class="hljs-property">state</span>,<br>    <span class="hljs-attr">open</span>: controller.<span class="hljs-property">open</span>,<br>    <span class="hljs-attr">close</span>: controller.<span class="hljs-property">close</span><br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>设计亮点：<strong>Host 缺失时返回 no-op + warnOnce</strong>。业务组件调 <code>usePreview()</code> 不会因为上层忘挂 Host 就崩溃，只是打一条 warn。</p>
+<h2 id="十、集成模式：Shell-vs-子应用"><a href="#十、集成模式：Shell-vs-子应用" class="headerlink" title="十、集成模式：Shell vs 子应用"></a>十、集成模式：Shell vs 子应用</h2><h3 id="10-1-为什么需要两种模式"><a href="#10-1-为什么需要两种模式" class="headerlink" title="10.1 为什么需要两种模式"></a>10.1 为什么需要两种模式</h3><p>核心约束：<strong>Vue 的 <code>provide / inject</code> 不跨 micro-app 边界</strong>。</p>
+<p><code>provide</code> 实际上是在当前 Vue 应用实例的 <code>appContext.provides</code> 对象上写 key。子应用是独立的 Vue 实例，有自己的 <code>appContext</code>，完全不知道 Shell 的 provides。</p>
+<p>所以每个子应用必须<strong>完整装配一次</strong>：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs nix"><span class="hljs-params">Shell:</span>                               子应用 A <span class="hljs-symbol">/</span> B <span class="hljs-symbol">/</span> <span class="hljs-params">C:</span><br>┌───────────────┐                    ┌───────────────┐<br>│ Registry      │                    │ Registry      │<br>│ Scope         │                    │ Scope         │<br>│ (no DS)       │                    │ DataSource A  │  ← 业务特定<br>│ Host (可选)    │                    │ Host          │<br>└───────────────┘                    └───────────────┘<br></code></pre></td></tr></table></figure>
+
+<h3 id="10-2-Shell-装配"><a href="#10-2-Shell-装配" class="headerlink" title="10.2 Shell 装配"></a>10.2 Shell 装配</h3><p>Shell 装配的典型场景是”全局搜索点击附件直接预览”——这个入口在 Shell 容器里，不在子应用路由树中。</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">setupFilePreview</span>(<span class="hljs-params"><span class="hljs-attr">app</span>: <span class="hljs-title class_">App</span></span>): <span class="hljs-built_in">void</span> &#123;<br>  <span class="hljs-keyword">const</span> registry = <span class="hljs-title function_">createPreviewRegistry</span>();<br>  <span class="hljs-title function_">registerBuiltinRenderers</span>(registry);<br>  <span class="hljs-keyword">const</span> scope = <span class="hljs-title function_">createShellScope</span>();           <span class="hljs-comment">// 读 Shell 自己的 store</span><br>  app.<span class="hljs-title function_">provide</span>(<span class="hljs-title class_">PreviewRegistryKey</span>, registry);<br>  app.<span class="hljs-title function_">provide</span>(<span class="hljs-title class_">PreviewScopeKey</span>, scope);<br>  <span class="hljs-comment">// 注意：Shell 不 provide DataSource —— 那是业务子应用的职责</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Shell 的 Scope 实现会 watch 租户 &#x2F; 工作空间 store + 登出事件：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createShellScope</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-keyword">const</span> userStore = <span class="hljs-title function_">useUserStore</span>();<br>  <span class="hljs-keyword">const</span> wsStore = <span class="hljs-title function_">useWorkspaceStore</span>();<br>  <span class="hljs-keyword">const</span> listeners = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Set</span>&lt;<span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>&gt;();<br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">invalidate</span> = (<span class="hljs-params"></span>) =&gt; listeners.<span class="hljs-title function_">forEach</span>(<span class="hljs-function"><span class="hljs-params">cb</span> =&gt;</span> <span class="hljs-title function_">cb</span>());<br><br>  <span class="hljs-title function_">watch</span>(<span class="hljs-function">() =&gt;</span> userStore.<span class="hljs-property">tenantId</span>, invalidate);<br>  <span class="hljs-title function_">watch</span>(<span class="hljs-function">() =&gt;</span> wsStore.<span class="hljs-property">currentId</span>, invalidate);<br>  authEventBus.<span class="hljs-title function_">on</span>(<span class="hljs-string">&#x27;logout&#x27;</span>, invalidate);<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-attr">getKey</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-string">`<span class="hljs-subst">$&#123;userStore.tenantId&#125;</span>::<span class="hljs-subst">$&#123;wsStore.currentId&#125;</span>`</span>,<br>    <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-params">cb</span>) &#123;<br>      listeners.<span class="hljs-title function_">add</span>(cb);<br>      <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> listeners.<span class="hljs-title function_">delete</span>(cb);<br>    &#125;<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>三个失效源：tenantId &#x2F; workspaceId &#x2F; logout。</p>
+<h3 id="10-3-子应用装配"><a href="#10-3-子应用装配" class="headerlink" title="10.3 子应用装配"></a>10.3 子应用装配</h3><p>子应用装配要完整三件套（Registry + Scope + DataSource）：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">setupFilePreview</span>(<span class="hljs-params"><span class="hljs-attr">app</span>: <span class="hljs-title class_">App</span></span>): <span class="hljs-built_in">void</span> &#123;<br>  <span class="hljs-keyword">const</span> registry = <span class="hljs-title function_">createPreviewRegistry</span>(&#123; <span class="hljs-attr">renderers</span>: builtinRenderers &#125;);<br>  <span class="hljs-keyword">const</span> scope = <span class="hljs-title function_">createSubAppScope</span>();          <span class="hljs-comment">// 读 window.$YS（Shell 只读暴露）</span><br>  <span class="hljs-keyword">const</span> dataSource = <span class="hljs-title function_">createDataSource</span>();      <span class="hljs-comment">// 业务实现</span><br><br>  app.<span class="hljs-title function_">provide</span>(<span class="hljs-title class_">PreviewRegistryKey</span>, registry);<br>  app.<span class="hljs-title function_">provide</span>(<span class="hljs-title class_">PreviewScopeKey</span>, scope);<br>  app.<span class="hljs-title function_">provide</span>(<span class="hljs-title class_">PreviewDataSourceKey</span>, dataSource);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>子应用的 Scope 可以简化——子应用生命周期和工作空间一致（切换 workspace 会卸载整个子应用），所以 <code>onInvalidate</code> 可以返回 noop：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createSubAppScope</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">getKey</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-keyword">const</span> ctx = (<span class="hljs-variable language_">window</span> <span class="hljs-keyword">as</span> <span class="hljs-built_in">any</span>).<span class="hljs-property">$YS</span> ?? &#123;&#125;;<br>      <span class="hljs-keyword">return</span> <span class="hljs-string">`<span class="hljs-subst">$&#123;ctx.tenantId ?? <span class="hljs-string">&#x27;&#x27;</span>&#125;</span>::<span class="hljs-subst">$&#123;ctx.currentWorkspace?.id ?? <span class="hljs-string">&#x27;&#x27;</span>&#125;</span>`</span>;<br>    &#125;,<br>    <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-params"></span>) &#123; <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> <span class="hljs-literal">undefined</span>; &#125;<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="10-4-DataSource-实现示例"><a href="#10-4-DataSource-实现示例" class="headerlink" title="10.4 DataSource 实现示例"></a>10.4 DataSource 实现示例</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createDataSource</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">PreviewDataSource</span> &#123;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-keyword">async</span> <span class="hljs-title function_">resolve</span>(<span class="hljs-params">file, &#123; signal &#125;</span>) &#123;<br>      <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">DOMException</span>(<span class="hljs-string">&#x27;aborted&#x27;</span>, <span class="hljs-string">&#x27;AbortError&#x27;</span>);<br>      <span class="hljs-keyword">const</span> resp = <span class="hljs-keyword">await</span> http.<span class="hljs-title function_">post</span>(<span class="hljs-string">&#x27;/files/preview-url&#x27;</span>, &#123; <span class="hljs-attr">id</span>: file.<span class="hljs-property">id</span> &#125;, &#123; signal &#125;);<br>      <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">DOMException</span>(<span class="hljs-string">&#x27;aborted&#x27;</span>, <span class="hljs-string">&#x27;AbortError&#x27;</span>);<br>      <span class="hljs-keyword">if</span> (resp.<span class="hljs-property">code</span> !== <span class="hljs-number">200</span> || !resp.<span class="hljs-property">data</span>?.<span class="hljs-property">url</span>) &#123;<br>        <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(resp.<span class="hljs-property">message</span> ?? <span class="hljs-string">&#x27;获取预览地址失败&#x27;</span>);<br>      &#125;<br>      <span class="hljs-keyword">return</span> &#123;<br>        <span class="hljs-attr">url</span>: resp.<span class="hljs-property">data</span>.<span class="hljs-property">url</span>,<br>        <span class="hljs-attr">expiresAt</span>: resp.<span class="hljs-property">data</span>.<span class="hljs-property">expiresAt</span>        <span class="hljs-comment">// 后端下发</span><br>      &#125;;<br>    &#125;<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>三条实现细节：</p>
+<ol>
+<li><strong>abort 前后各检查一次</strong>：网络请求开始前、返回后都检查 signal，提前退出</li>
+<li><strong>token 刷新由 http 拦截器透明处理</strong>：DataSource 不管 401</li>
+<li><strong>返回 expiresAt 原样透传</strong>：后端决定、前端不猜</li>
+</ol>
+<h3 id="10-5-子应用-App-vue-挂载"><a href="#10-5-子应用-App-vue-挂载" class="headerlink" title="10.5 子应用 App.vue 挂载"></a>10.5 子应用 App.vue 挂载</h3><p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;template&gt;<br>  &lt;FilePreviewHost v-slot=&quot;&#123; open &#125;&quot;&gt;<br>    &lt;router-view /&gt;<br>    &lt;FilePreviewEventsBridge :open=&quot;open&quot; /&gt;  &lt;!-- 可选：兼容旧事件 --&gt;<br>    &lt;FilePreviewDialog /&gt;<br>  &lt;/FilePreviewHost&gt;<br>&lt;/template&gt;<br></code></pre></td></tr></table></figure>
+
+<p>一个 Host 包住 <code>router-view</code>，所有子路由共享这个 Host。</p>
+<h2 id="十一、关键设计决策与权衡"><a href="#十一、关键设计决策与权衡" class="headerlink" title="十一、关键设计决策与权衡"></a>十一、关键设计决策与权衡</h2><h3 id="11-1-决策清单"><a href="#11-1-决策清单" class="headerlink" title="11.1 决策清单"></a>11.1 决策清单</h3><table>
+<thead>
+<tr>
+<th>#</th>
+<th>决策</th>
+<th>选择</th>
+<th>备选</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>D1</td>
+<td>缓存过期策略</td>
+<td>后端 <code>expiresAt</code> + skewMs</td>
+<td>前端 TTL</td>
+<td>TTL 依赖本地时钟，时钟漂移后可能拿到无效 URL</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>资源字段是否支持 blob</td>
+<td>禁止</td>
+<td>允许 opt-in</td>
+<td>大文件驻留内存风险大于收益</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>渲染器匹配策略</td>
+<td>accepts string[] + 谓词</td>
+<td>MIME type 精确匹配</td>
+<td>后端 fileType 编码不统一</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>同名渲染器注册</td>
+<td>直接抛错</td>
+<td>静默覆盖</td>
+<td>避免”幽灵覆盖”难调试</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>Scope 构造方</td>
+<td>Shell &#x2F; 子应用各自构造</td>
+<td>预览包内置</td>
+<td>Scope 依赖业务 store，预览包不该耦合</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>provide&#x2F;inject 还是全局单例</td>
+<td>provide&#x2F;inject</td>
+<td>全局单例</td>
+<td>微前端沙箱下单例泄漏更危险</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>Dialog 是否内置</td>
+<td>内置 + 可替换</td>
+<td>只给 Host</td>
+<td>80% 用户直接用默认，20% 用 slot 自定义</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>渲染器加载方式</td>
+<td>每个渲染器 defineAsyncComponent</td>
+<td>主包内置</td>
+<td>避免 Office 库让主包暴涨</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>abort 异常处理</td>
+<td>静默吞掉，不设 error 态</td>
+<td>进 error 态</td>
+<td>abort 是用户主动行为，不是错误</td>
+</tr>
+<tr>
+<td>D10</td>
+<td>Host dispose 触发</td>
+<td>onBeforeUnmount 自动</td>
+<td>业务方手动调</td>
+<td>降低误用成本</td>
+</tr>
+</tbody></table>
+<h3 id="11-2-为什么不用全局单例"><a href="#11-2-为什么不用全局单例" class="headerlink" title="11.2 为什么不用全局单例"></a>11.2 为什么不用全局单例</h3><p>最初考虑过”整个 window 一个预览实例”的方案，优点是子应用都不用装配。但有四个致命缺陷：</p>
+<ol>
+<li><strong>微前端沙箱</strong>：micro-app 卸载时可能不清理全局，下次启动带脏数据</li>
+<li><strong>多租户隔离</strong>：全局单例意味着所有租户共享一份 cache，scope 隔离失效</li>
+<li><strong>HMR 友好性</strong>：热更新时全局单例不会重置，dev 体验差</li>
+<li><strong>单测困难</strong>：全局状态跨测试用例泄漏</li>
+</ol>
+<p><code>provide/inject</code> 跟 Vue 应用实例绑定，应用卸载就自动清理，是更”干净”的选择——代价是子应用必须各自装配一次。这个代价我们认为值得。</p>
+<h3 id="11-3-为什么-scope-要由外部构造"><a href="#11-3-为什么-scope-要由外部构造" class="headerlink" title="11.3 为什么 scope 要由外部构造"></a>11.3 为什么 scope 要由外部构造</h3><p>Scope 的 <code>getKey</code> 依赖业务 store（租户、工作空间）。如果预览包自己构造 scope，它就必须 import 业务 store → 包耦合爆炸。</p>
+<p>反过来让外部构造：预览包只定义 <code>PreviewScope</code> 接口，Shell &#x2F; 子应用各自实现。预览包<strong>零业务依赖</strong>。</p>
+<h2 id="十二、踩坑实录"><a href="#十二、踩坑实录" class="headerlink" title="十二、踩坑实录"></a>十二、踩坑实录</h2><h3 id="12-1-Vite-库模式下动态-CSS-导入变空-shim"><a href="#12-1-Vite-库模式下动态-CSS-导入变空-shim" class="headerlink" title="12.1 Vite 库模式下动态 CSS 导入变空 shim"></a>12.1 Vite 库模式下动态 CSS 导入变空 shim</h3><p><strong>现象</strong>：Office 渲染器开发时可以跑，lib 构建后预览空白，Network 报 404 加载一个空 JS chunk。</p>
+<p><strong>原因</strong>：写法是</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">const</span> <span class="hljs-title class_">OfficeX</span> = <span class="hljs-title function_">defineAsyncComponent</span>(<span class="hljs-title function_">async</span> () =&gt; &#123;<br>  <span class="hljs-keyword">await</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">&#x27;third-party/lib/style.css&#x27;</span>);   <span class="hljs-comment">// ← 动态 CSS 导入</span><br>  <span class="hljs-keyword">return</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">&#x27;third-party/lib/component.mjs&#x27;</span>);<br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<p>Vite 的 lib 模式对<strong>动态 <code>import(&#39;*.css&#39;)</code></strong> 的处理是：产出一个空的 shim JS chunk，然后把 CSS 内容丢到其他地方。这个 shim chunk 在 dev 里找不到真实文件会 404。</p>
+<p><strong>修复</strong>：改成静态 top-level 导入，让 Vite 正常把 CSS 合并进主 <code>style.css</code>：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;third-party/lib/style.css&#x27;</span>;            <span class="hljs-comment">// ← 静态顶层</span><br><br><span class="hljs-keyword">const</span> <span class="hljs-title class_">OfficeX</span> = <span class="hljs-title function_">defineAsyncComponent</span>(<br>  <span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">&#x27;third-party/lib/component.mjs&#x27;</span>)<br>);<br></code></pre></td></tr></table></figure>
+
+<p>代价：消费方必须显式 <code>import &#39;@your-org/file-preview/style.css&#39;</code>（因为现在 CSS 跟 JS 完全分离）。</p>
+<h3 id="12-2-Element-Plus-Dialog-fullscreen-teleport-scoped-样式"><a href="#12-2-Element-Plus-Dialog-fullscreen-teleport-scoped-样式" class="headerlink" title="12.2 Element Plus Dialog fullscreen + teleport + scoped 样式"></a>12.2 Element Plus Dialog fullscreen + teleport + scoped 样式</h3><p><strong>现象</strong>：弹窗样式在 Component 内调整好了，一上线发现完全没生效。</p>
+<p><strong>原因</strong>：<code>el-dialog</code> 默认 <code>append-to-body</code>，Vue SFC scoped 样式基于 <code>data-v-xxx</code> 属性选择器，但 dialog 被 teleport 到 body 后，它的 DOM 里没有 <code>data-v-xxx</code>（或者祖先不在当前组件作用域）。</p>
+<p><strong>修复</strong>：样式分两段写</p>
+<p class="code-caption" data-lang="vue" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs vue">&lt;style&gt;<br>/* 全局样式：控制 fullscreen 下的 el-dialog 内部布局 */<br>.my-preview-dialog &gt; .el-dialog__header &#123; ... &#125;<br>.my-preview-dialog &gt; .el-dialog__body &#123; ... &#125;<br>&lt;/style&gt;<br><br>&lt;style scoped&gt;<br>/* scoped：只作用于弹窗内容里的子组件 */<br>.my-preview-dialog__header &#123; ... &#125;<br>&lt;/style&gt;<br></code></pre></td></tr></table></figure>
+
+<p>全局选择器管 “<code>.my-preview-dialog</code> 这个类名下的第三方结构”，scoped 管”自己 render 的节点”。</p>
+<h3 id="12-3-关闭弹窗后-“Cannot-set-reactive-property-on-undefined”"><a href="#12-3-关闭弹窗后-“Cannot-set-reactive-property-on-undefined”" class="headerlink" title="12.3 关闭弹窗后 “Cannot set reactive property on undefined”"></a>12.3 关闭弹窗后 “Cannot set reactive property on undefined”</h3><p><strong>现象</strong>：dev 控制台红字，用户关闭弹窗后后到的请求污染 state。</p>
+<p><strong>原因</strong>：fetch 返回后没检查 <code>signal.aborted</code> 就 setState。</p>
+<p><strong>修复</strong>：见第 7.3 节，两条 early return 规则。</p>
+<h3 id="12-4-签名-URL-临界态-403"><a href="#12-4-签名-URL-临界态-403" class="headerlink" title="12.4 签名 URL 临界态 403"></a>12.4 签名 URL 临界态 403</h3><p><strong>现象</strong>：偶发 403，只在文件预览刚打开 1 秒内触发。</p>
+<p><strong>原因</strong>：URL 离过期只剩几秒，缓存命中时 <code>isExpired</code> 判为 false，但用户 fetch 时已经过期。</p>
+<p><strong>修复</strong>：<code>ResourceValidator.skewMs = 30_000</code>，提前 30 秒认定过期，触发重签。</p>
+<h3 id="12-5-场景：用户疯狂点列表切文件"><a href="#12-5-场景：用户疯狂点列表切文件" class="headerlink" title="12.5 场景：用户疯狂点列表切文件"></a>12.5 场景：用户疯狂点列表切文件</h3><p><strong>现象</strong>：Network 面板一堆 pending 请求。</p>
+<p><strong>原因</strong>：没启用 AbortGroup 独占语义。</p>
+<p><strong>修复</strong>：每次 <code>open</code> 调用 <code>abortGroup.spawn()</code>，自动 abort 上一次的 controller。</p>
+<h2 id="十三、常见问题-FAQ"><a href="#十三、常见问题-FAQ" class="headerlink" title="十三、常见问题 FAQ"></a>十三、常见问题 FAQ</h2><p><strong>Q1：为什么每个子应用都要重复装配？不能共享一份？</strong><br>A：Vue 的 <code>provide / inject</code> 是 Vue 应用实例作用域的，不跨 micro-app 边界。子应用是独立 Vue 实例，必须各自 <code>provide</code>。这是微前端沙箱的代价。</p>
+<p><strong>Q2：渲染器必须 emit ‘ready’ 吗？</strong><br>A：是。Host 依靠 ‘ready’ 从 <code>rendering</code> 跃迁到 <code>ready</code>，隐藏加载态。漏 emit 会导致 loading 一直转。</p>
+<p><strong>Q3：为什么禁止 blob 字段？</strong><br>A：大文件 blob 驻留内存且 GC 不回收。如果业务真的有本地 blob，让 DataSource 自己 <code>URL.createObjectURL</code> 转 URL 并在组件卸载时 revoke。</p>
+<p><strong>Q4：用户能感知缓存命中吗？</strong><br>A：应当不能。Dialog <code>destroy-on-close</code>，缓存只是让 DataSource.resolve 省掉一次网络往返，UI 流程完全一样。</p>
+<p><strong>Q5：新增文件格式需要改核心代码吗？</strong><br>A：不需要。<code>registry.register(&#123; name, accepts, loader &#125;)</code> 即可。业务代码里注册 + 在 onUnmounted 反注册。</p>
+<p><strong>Q6：能替换默认 Dialog 吗？</strong><br>A：能。<code>&lt;FilePreviewHost v-slot=&quot;&#123; state, open, close &#125;&quot;&gt;</code> 拿到作用域插槽变量，自己渲染任意 UI。默认 Dialog 只是不写 slot 时的兜底。</p>
+<p><strong>Q7：SSR 能用吗？</strong><br>A：v1 不支持。渲染器大量依赖 <code>window</code> &#x2F; <code>document</code> &#x2F; <code>URL.createObjectURL</code>。如果要做 SSR，需要给每个渲染器加 <code>import.meta.env.SSR</code> 分支。</p>
+<h2 id="十四、最佳实践-Checklist"><a href="#十四、最佳实践-Checklist" class="headerlink" title="十四、最佳实践 Checklist"></a>十四、最佳实践 Checklist</h2><h3 id="14-1-设计期"><a href="#14-1-设计期" class="headerlink" title="14.1 设计期"></a>14.1 设计期</h3><ul>
+<li><input disabled="" type="checkbox"> 契约（<code>types.ts</code>）所有字段 <code>readonly</code></li>
+<li><input disabled="" type="checkbox"> 状态机用 discriminated union（<code>kind</code> 字段）</li>
+<li><input disabled="" type="checkbox"> 渲染器的 <code>accepts</code> 同时支持 string[] 和谓词</li>
+<li><input disabled="" type="checkbox"> 渲染器返回的组件通过 <code>defineAsyncComponent</code> 懒加载</li>
+<li><input disabled="" type="checkbox"> DataSource 允许注入（便于单测 mock）</li>
+</ul>
+<h3 id="14-2-实现期"><a href="#14-2-实现期" class="headerlink" title="14.2 实现期"></a>14.2 实现期</h3><ul>
+<li><input disabled="" type="checkbox"> 缓存 key 编码 scope 身份</li>
+<li><input disabled="" type="checkbox"> 缓存订阅 <code>scope.onInvalidate</code></li>
+<li><input disabled="" type="checkbox"> 验证器用 <code>expiresAt + skewMs</code>，不用 TTL</li>
+<li><input disabled="" type="checkbox"> AbortGroup 独占语义（spawn 自动 abort 旧的）</li>
+<li><input disabled="" type="checkbox"> 每个 await 后检查 <code>signal.aborted</code> → early return</li>
+<li><input disabled="" type="checkbox"> Host <code>onBeforeUnmount</code> 调 <code>dispose</code></li>
+<li><input disabled="" type="checkbox"> 同名渲染器注册直接抛错</li>
+<li><input disabled="" type="checkbox"> shouldPreview 返回 string 作为拒绝理由</li>
+</ul>
+<h3 id="14-3-集成期"><a href="#14-3-集成期" class="headerlink" title="14.3 集成期"></a>14.3 集成期</h3><ul>
+<li><input disabled="" type="checkbox"> Shell 和子应用各自装配（不共享）</li>
+<li><input disabled="" type="checkbox"> Shell 的 Scope watch 租户 &#x2F; 工作空间 &#x2F; 登出</li>
+<li><input disabled="" type="checkbox"> 子应用的 Scope 读 Shell 只读暴露的上下文</li>
+<li><input disabled="" type="checkbox"> DataSource 尊重 signal，前后各检查一次</li>
+<li><input disabled="" type="checkbox"> Host 放在 App.vue 顶层，一个子应用一个</li>
+<li><input disabled="" type="checkbox"> 样式显式 import（如果采用静态 CSS 合并策略）</li>
+</ul>
+<h2 id="十五、附录"><a href="#十五、附录" class="headerlink" title="十五、附录"></a>十五、附录</h2><h3 id="15-1-完整类型契约索引"><a href="#15-1-完整类型契约索引" class="headerlink" title="15.1 完整类型契约索引"></a>15.1 完整类型契约索引</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewFile</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewResource</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewDataSource</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewScope</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewRenderer</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewRendererProps</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">type</span> <span class="hljs-title class_">PreviewRendererEmits</span> = <span class="hljs-comment">/* ... */</span>;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">type</span> <span class="hljs-title class_">PreviewState</span> = <span class="hljs-comment">/* discriminated union */</span>;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewRegistry</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewCache</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">ResourceValidator</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AbortGroup</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewController</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">UsePreviewApi</span> &#123; <span class="hljs-comment">/* ... */</span> &#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="15-2-Public-API-Surface"><a href="#15-2-Public-API-Surface" class="headerlink" title="15.2 Public API Surface"></a>15.2 Public API Surface</h3><table>
+<thead>
+<tr>
+<th>类别</th>
+<th>导出</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>组件</td>
+<td><code>FilePreviewHost</code>, <code>FilePreviewDialog</code>, <code>PreviewErrorBoundary</code></td>
+</tr>
+<tr>
+<td>Composable</td>
+<td><code>usePreview</code></td>
+</tr>
+<tr>
+<td>工厂</td>
+<td><code>createPreviewRegistry</code>, <code>createPreviewController</code>, <code>createPreviewCache</code>, <code>createResourceValidator</code>, <code>createAbortGroup</code></td>
+</tr>
+<tr>
+<td>内置渲染器</td>
+<td><code>csvRenderer</code>, <code>txtImageRenderer</code>, <code>xmlRenderer</code>, <code>markdownRenderer</code>, <code>officeRenderer</code>, <code>builtinRenderers</code>, <code>registerBuiltinRenderers</code>, <code>createOfficeRenderer</code></td>
+</tr>
+<tr>
+<td>InjectionKey</td>
+<td><code>PreviewRegistryKey</code>, <code>PreviewScopeKey</code>, <code>PreviewDataSourceKey</code>, <code>PreviewControllerKey</code></td>
+</tr>
+<tr>
+<td>类型</td>
+<td>全部 interface &#x2F; type</td>
+</tr>
+</tbody></table>
+<h3 id="15-3-默认配置建议值"><a href="#15-3-默认配置建议值" class="headerlink" title="15.3 默认配置建议值"></a>15.3 默认配置建议值</h3><table>
+<thead>
+<tr>
+<th>参数</th>
+<th>默认</th>
+<th>建议区间</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>cacheOptions.limit</code></td>
+<td>20</td>
+<td>10-50</td>
+<td>预览资源数量有限，不必过大</td>
+</tr>
+<tr>
+<td><code>validatorOptions.skewMs</code></td>
+<td>30_000</td>
+<td>10_000-60_000</td>
+<td>抗时钟抖动的安全带</td>
+</tr>
+<tr>
+<td>Office 渲染器 <code>maxSize</code></td>
+<td>50 MB</td>
+<td>20-200 MB</td>
+<td>取决于目标浏览器内存</td>
+</tr>
+<tr>
+<td>业务渲染器 <code>priority</code></td>
+<td>≥ 50</td>
+<td>覆盖内置用</td>
+<td>内置默认 10-20</td>
+</tr>
+</tbody></table>
+<h3 id="15-4-分层对应的单测边界"><a href="#15-4-分层对应的单测边界" class="headerlink" title="15.4 分层对应的单测边界"></a>15.4 分层对应的单测边界</h3><table>
+<thead>
+<tr>
+<th>层</th>
+<th>单测环境</th>
+<th>重点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Contract（types）</td>
+<td>类型测试</td>
+<td>类型契约的稳定性</td>
+</tr>
+<tr>
+<td>Infra（4 件套）</td>
+<td>Node &#x2F; vitest</td>
+<td>纯函数式，无需 DOM</td>
+</tr>
+<tr>
+<td>Controller</td>
+<td>Node + 模拟 Scope&#x2F;DataSource</td>
+<td>状态机跃迁</td>
+</tr>
+<tr>
+<td>Composable &#x2F; Host</td>
+<td>jsdom + @vue&#x2F;test-utils</td>
+<td>provide&#x2F;inject + 生命周期</td>
+</tr>
+<tr>
+<td>Renderer</td>
+<td>jsdom + mock fetch</td>
+<td>emit ready&#x2F;error</td>
+</tr>
+</tbody></table>
+<h3 id="15-5-架构演进脉络"><a href="#15-5-架构演进脉络" class="headerlink" title="15.5 架构演进脉络"></a>15.5 架构演进脉络</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs nix"><span class="hljs-params">V0:</span> 散落各处的 <span class="hljs-number">4</span> 个 Dialog  ─→  积累 <span class="hljs-number">9</span> 宗债<br>         │<br>         ▼<br><span class="hljs-params">V1:</span> 类型契约冻结 <span class="hljs-operator">+</span> Registry 插件机制<br>         │<br>         ▼<br><span class="hljs-params">V2:</span> 基建四件套（Registry<span class="hljs-operator">/</span>Cache<span class="hljs-operator">/</span>Abort<span class="hljs-operator">/</span>Validator）<br>         │<br>         ▼<br><span class="hljs-params">V3:</span> Controller 状态机 <span class="hljs-operator">+</span> Host<span class="hljs-symbol">/Dialog</span> 外壳<br>         │<br>         ▼<br><span class="hljs-params">V4:</span> Shell <span class="hljs-operator">+</span> 子应用双侧集成模式<br>         │<br>         ▼<br>V5（规划）: 水印 <span class="hljs-symbol">/</span> 打印控制 <span class="hljs-symbol">/</span> 缩略图 <span class="hljs-symbol">/</span> SSR<br></code></pre></td></tr></table></figure>
+
+<h3 id="15-6-延伸阅读方向"><a href="#15-6-延伸阅读方向" class="headerlink" title="15.6 延伸阅读方向"></a>15.6 延伸阅读方向</h3><ul>
+<li>微前端沙箱与 Vue 应用实例隔离机制</li>
+<li>Vue 3 <code>defineAsyncComponent</code> + Suspense 的加载态模型</li>
+<li>AbortController 在浏览器 fetch &#x2F; XHR &#x2F; 自定义异步任务中的传递</li>
+<li>签名 URL 的过期语义（AWS S3 Presigned URL &#x2F; OSS STS）</li>
+<li>LRU 缓存的 Map 实现与 O(1) 复杂度证明</li>
+</ul>
+<hr>
+<p><strong>这套架构的精髓</strong>：把”一个预览弹窗”拆成五层，每层职责单一、契约稳定、可独立单测；跨子应用通过 <code>provide/inject</code> 而非全局单例解耦；缓存靠 <code>scope + expiresAt</code> 双维度隔离；生命周期靠 <code>AbortGroup + dispose</code> 兜底。九宗设计债一次性清零，后续扩展（新格式、新租户、新集成方）都只需要改插件，不改核心。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/%E5%BE%AE%E5%89%8D%E7%AB%AF%E6%9E%B6%E6%9E%84/" class="category-chain-item">微前端架构</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/vue3/" class="print-no-link">#vue3</a>
+      
+        <a href="../../../../../tags/micro-frontend/" class="print-no-link">#micro-frontend</a>
+      
+        <a href="../../../../../tags/architecture/" class="print-no-link">#architecture</a>
+      
+        <a href="../../../../../tags/plugin-system/" class="print-no-link">#plugin-system</a>
+      
+        <a href="../../../../../tags/design-pattern/" class="print-no-link">#design-pattern</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台</div>
+      <div>http://example.com/2026/04/19/micro-web/file-preview-architecture-design/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年4月19日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../preview-cache-ttl-vs-expiresat/" title="微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL">
+                        <span class="hidden-mobile">微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

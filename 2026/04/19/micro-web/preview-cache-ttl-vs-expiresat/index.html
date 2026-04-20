@@ -1,0 +1,1135 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="一、从一个诡异的 Bug 说起某天 QA 提了一个复现概率 &lt; 10% 的 bug：  “切换工作空间后，点第一份 xlsx 预览，偶尔会弹出上一个空间的文件内容。”  看了一下老代码的”缓存”：   12345678910&#x2F;&#x2F; 老版本：模块级全局 Mapconst fileDownloadMap &#x3D; new Map&lt;string, string&gt;();async functio">
+<meta property="og:type" content="article">
+<meta property="og:title" content="微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL">
+<meta property="og:url" content="http://example.com/2026/04/19/micro-web/preview-cache-ttl-vs-expiresat/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="一、从一个诡异的 Bug 说起某天 QA 提了一个复现概率 &lt; 10% 的 bug：  “切换工作空间后，点第一份 xlsx 预览，偶尔会弹出上一个空间的文件内容。”  看了一下老代码的”缓存”：   12345678910&#x2F;&#x2F; 老版本：模块级全局 Mapconst fileDownloadMap &#x3D; new Map&lt;string, string&gt;();async functio">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-19T12:24:33.000Z">
+<meta property="article:modified_time" content="2026-04-19T12:29:25.599Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="vue3">
+<meta property="article:tag" content="micro-frontend">
+<meta property="article:tag" content="architecture">
+<meta property="article:tag" content="cache">
+<meta property="article:tag" content="LRU">
+<meta property="article:tag" content="AbortController">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-04-19 20:24" pubdate>
+          2026年4月19日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          6.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          55 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h2 id="一、从一个诡异的-Bug-说起"><a href="#一、从一个诡异的-Bug-说起" class="headerlink" title="一、从一个诡异的 Bug 说起"></a>一、从一个诡异的 Bug 说起</h2><p>某天 QA 提了一个复现概率 &lt; 10% 的 bug：</p>
+<blockquote>
+<p>“切换工作空间后，点第一份 xlsx 预览，偶尔会弹出<strong>上一个空间</strong>的文件内容。”</p>
+</blockquote>
+<p>看了一下老代码的”缓存”：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// 老版本：模块级全局 Map</span><br><span class="hljs-keyword">const</span> fileDownloadMap = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;();<br><br><span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">getPreviewUrl</span>(<span class="hljs-params"><span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span></span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">string</span>&gt; &#123;<br>  <span class="hljs-keyword">const</span> cached = fileDownloadMap.<span class="hljs-title function_">get</span>(fileId);<br>  <span class="hljs-keyword">if</span> (cached) <span class="hljs-keyword">return</span> cached;<br>  <span class="hljs-keyword">const</span> url = <span class="hljs-keyword">await</span> api.<span class="hljs-title function_">downloadFile</span>(fileId);<br>  fileDownloadMap.<span class="hljs-title function_">set</span>(fileId, url);<br>  <span class="hljs-keyword">return</span> url;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>三个问题一眼看出：</p>
+<ol>
+<li><strong>key 只用 fileId</strong>——但不同工作空间下 <code>fileId</code> 可能相同（后端按 workspace 分库分表）</li>
+<li><strong>没有过期机制</strong>——签名 URL 早就在 5 分钟后失效，老旧 URL 被一直留着</li>
+<li><strong>没有失效订阅</strong>——切租户、切工作空间、登出都不清缓存</li>
+</ol>
+<p>这篇文章记录我们重写 <code>@co/file-preview</code> 缓存层时的全部决策路径：</p>
+<ul>
+<li>为什么 <strong>TTL（Time To Live）</strong> 看起来简单，但在微前端场景下不成立</li>
+<li>为什么要换成后端下发的 <strong><code>expiresAt</code> 绝对时间戳</strong> + 时钟抖动边界</li>
+<li>Scope（作用域）作为<strong>身份维度</strong>如何与缓存协同</li>
+<li>AbortController 如何和缓存生命周期绑定，避免”缓存里有，但请求还在跑”的竞态</li>
+</ul>
+<p>读完你应当能：</p>
+<ul>
+<li>从源码级别理解一个 scope-aware LRU 缓存的完整实现</li>
+<li>在自己的微前端 &#x2F; SPA 项目里复用这套模式</li>
+<li>拿到一份可直接跑的最小 Demo</li>
+</ul>
+<h2 id="二、概念基础：TTL-缓存是怎么工作的"><a href="#二、概念基础：TTL-缓存是怎么工作的" class="headerlink" title="二、概念基础：TTL 缓存是怎么工作的"></a>二、概念基础：TTL 缓存是怎么工作的</h2><p>TTL 的含义是 <strong>Time To Live</strong>，给每条缓存项附带一个”存活时长”，过期自动作废。</p>
+<h3 id="2-1-典型-TTL-实现"><a href="#2-1-典型-TTL-实现" class="headerlink" title="2.1 典型 TTL 实现"></a>2.1 典型 TTL 实现</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">TTLEntry</span>&lt;V&gt; &#123;<br>  <span class="hljs-attr">value</span>: V;<br>  <span class="hljs-attr">createdAt</span>: <span class="hljs-built_in">number</span>;        <span class="hljs-comment">// 写入时的 Date.now()</span><br>  <span class="hljs-attr">ttl</span>: <span class="hljs-built_in">number</span>;              <span class="hljs-comment">// 毫秒</span><br>&#125;<br><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">TTLCache</span>&lt;K, V&gt; &#123;<br>  <span class="hljs-keyword">private</span> store = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;K, <span class="hljs-title class_">TTLEntry</span>&lt;V&gt;&gt;();<br><br>  <span class="hljs-title function_">set</span>(<span class="hljs-attr">key</span>: K, <span class="hljs-attr">value</span>: V, <span class="hljs-attr">ttl</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span> &#123;<br>    <span class="hljs-variable language_">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title function_">set</span>(key, &#123; value, <span class="hljs-attr">createdAt</span>: <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>(), ttl &#125;);<br>  &#125;<br><br>  <span class="hljs-title function_">get</span>(<span class="hljs-attr">key</span>: K): V | <span class="hljs-literal">undefined</span> &#123;<br>    <span class="hljs-keyword">const</span> entry = <span class="hljs-variable language_">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title function_">get</span>(key);<br>    <span class="hljs-keyword">if</span> (!entry) <span class="hljs-keyword">return</span> <span class="hljs-literal">undefined</span>;<br>    <span class="hljs-keyword">if</span> (<span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>() - entry.<span class="hljs-property">createdAt</span> &gt; entry.<span class="hljs-property">ttl</span>) &#123;   <span class="hljs-comment">// 过期判定</span><br>      <span class="hljs-variable language_">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title function_">delete</span>(key);<br>      <span class="hljs-keyword">return</span> <span class="hljs-literal">undefined</span>;<br>    &#125;<br>    <span class="hljs-keyword">return</span> entry.<span class="hljs-property">value</span>;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>三个假设隐含其中：</p>
+<ul>
+<li>假设 1：<strong>本地时钟 <code>Date.now()</code> 可信</strong></li>
+<li>假设 2：<strong>写入时刻就是”有效起点”</strong></li>
+<li>假设 3：<strong>TTL 是前端已知的量</strong>（由调用方传入）</li>
+</ul>
+<p>这三条在传统 SPA 里大多成立，于是 TTL 成为最常见的缓存方案。</p>
+<h3 id="2-2-微前端场景引入的变量"><a href="#2-2-微前端场景引入的变量" class="headerlink" title="2.2 微前端场景引入的变量"></a>2.2 微前端场景引入的变量</h3><p>微前端架构下，<strong>至少五个新变量</strong>一起出现：</p>
+<p class="code-caption" data-lang="mermaid" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<pre><code class=" mermaid">flowchart TB
+  User[用户] --&gt; Shell[Cloud Shell 基座]
+  Shell --&gt; SubApp1[sim-data-mgt 子应用]
+  Shell --&gt; SubApp2[cosim 子应用]
+  Shell --&gt; SubApp3[route-verify 子应用]
+  Shell -.认证.-&gt; API[(后端)]
+  SubApp1 -.拿签名URL.-&gt; API
+  SubApp2 -.拿签名URL.-&gt; API
+
+  subgraph &quot;动态身份（影响缓存 Key）&quot;
+    Tenant[tenantId 租户]
+    Workspace[containerId 工作空间]
+    Auth[accessToken 会话]
+  end
+</code></pre>
+
+<p>新变量：</p>
+<ol>
+<li>多子应用共享一个预览组件，各自身份不同</li>
+<li>签名 URL 由后端签发，<strong>过期时间由后端决定</strong>（前端并不知道签名策略）</li>
+<li>用户随时可以切租户 &#x2F; 切工作空间 &#x2F; 登出</li>
+<li>浏览器标签页可能被挂起数小时后再切回（本地时钟被系统休眠”拉长”）</li>
+<li>用户可以手动改本地时钟</li>
+</ol>
+<p>TTL 方案的三条假设全部塌陷。</p>
+<h2 id="三、TTL-在微前端下的四重失效"><a href="#三、TTL-在微前端下的四重失效" class="headerlink" title="三、TTL 在微前端下的四重失效"></a>三、TTL 在微前端下的四重失效</h2><h3 id="3-1-失效一：时钟漂移"><a href="#3-1-失效一：时钟漂移" class="headerlink" title="3.1 失效一：时钟漂移"></a>3.1 失效一：时钟漂移</h3><p><strong>现象</strong>：用户把系统时间调前 1 小时，或笔记本合盖休眠 3 小时再打开。</p>
+<p><strong>后果</strong>：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs typescript">cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>, url, &#123; <span class="hljs-attr">ttl</span>: <span class="hljs-number">5</span> * <span class="hljs-number">60_000</span> &#125;);<br><span class="hljs-comment">// 合盖 3 小时</span><br>cache.<span class="hljs-title function_">get</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>);   <span class="hljs-comment">// Date.now() 已跳前 3 小时 → 立即判定过期</span><br><span class="hljs-comment">// 但实际签名 URL 可能还有 4 分钟寿命，浪费一次重新签发</span><br></code></pre></td></tr></table></figure>
+
+<p>或者反过来：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// 用户把系统时间调前 10 分钟</span><br>cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>, url, &#123; <span class="hljs-attr">ttl</span>: <span class="hljs-number">5</span> * <span class="hljs-number">60_000</span> &#125;);<br><span class="hljs-comment">// 真实时间 6 分钟后访问，但 Date.now() 只过了 -4 分钟</span><br>cache.<span class="hljs-title function_">get</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>);   <span class="hljs-comment">// 认为未过期 → 返回已失效的 URL</span><br><span class="hljs-comment">// 下游 fetch 403</span><br></code></pre></td></tr></table></figure>
+
+<p><strong>根因</strong>：TTL 的”过期判定”锚定在前端本机时钟，前端时钟不可信。</p>
+<h3 id="3-2-失效二：前端不知道真实有效期"><a href="#3-2-失效二：前端不知道真实有效期" class="headerlink" title="3.2 失效二：前端不知道真实有效期"></a>3.2 失效二：前端不知道真实有效期</h3><p>后端签发签名 URL 时，过期时间由后端策略决定（常见 5 min、15 min、1h、按文件类型分级）。前端强行写死 <code>ttl: 5 * 60_000</code> 只是<strong>对后端行为的猜测</strong>。</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// 前端猜 5 分钟</span><br>cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>, url, &#123; <span class="hljs-attr">ttl</span>: <span class="hljs-number">5</span> * <span class="hljs-number">60_000</span> &#125;);<br><br><span class="hljs-comment">// 实际后端给了 2 分钟（安全等级高的机密文件）</span><br><span class="hljs-comment">// → 缓存还在&quot;生存期&quot;内，但 URL 已失效</span><br></code></pre></td></tr></table></figure>
+
+<p>更严重的是，同一个系统里不同文件、不同操作签发的 URL 有效期可能不同。TTL 选不出一个通吃值。</p>
+<h3 id="3-3-失效三：身份维度未被编码"><a href="#3-3-失效三：身份维度未被编码" class="headerlink" title="3.3 失效三：身份维度未被编码"></a>3.3 失效三：身份维度未被编码</h3><p>TTL 只表达”时间”一个维度。但缓存命中的正确性需要 ≥ 3 个维度：</p>
+<ul>
+<li><strong>时间</strong>（是否过期）</li>
+<li><strong>身份</strong>（当前 tenant &#x2F; workspace &#x2F; 用户是否和写入时一致）</li>
+<li><strong>内容</strong>（资源本身有没有被后端更新）</li>
+</ul>
+<p>TTL 方案里身份维度只能通过 <strong>key 拼接</strong>解决，而这恰恰是最容易被写错的地方——开头那个老 bug 就是 key 没拼 <code>workspaceId</code>。</p>
+<h3 id="3-4-失效四：失效广播缺失"><a href="#3-4-失效四：失效广播缺失" class="headerlink" title="3.4 失效四：失效广播缺失"></a>3.4 失效四：失效广播缺失</h3><p>TTL 是”懒失效”：只有在下次 <code>get</code> 时才会判定过期。但业务语义上，<strong>切租户应该立即把所有缓存清空</strong>——不能让 A 租户的 URL 有任何一点可能被 B 租户读到。</p>
+<p>TTL 天然无法响应”切换工作空间”这类<strong>瞬时事件</strong>。</p>
+<h2 id="四、expiresAt-方案：后端下发绝对时间戳"><a href="#四、expiresAt-方案：后端下发绝对时间戳" class="headerlink" title="四、expiresAt 方案：后端下发绝对时间戳"></a>四、<code>expiresAt</code> 方案：后端下发绝对时间戳</h2><h3 id="4-1-核心思路"><a href="#4-1-核心思路" class="headerlink" title="4.1 核心思路"></a>4.1 核心思路</h3><p>把”何时过期”的决定权<strong>交还给后端</strong>。后端每次下发 URL 时带上绝对过期时间戳：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewResource</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">expiresAt</span>?: <span class="hljs-built_in">number</span>;  <span class="hljs-comment">// ms since epoch，后端给出</span><br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">mimeType</span>?: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">encoding</span>?: <span class="hljs-string">&#x27;utf-8&#x27;</span> | <span class="hljs-string">&#x27;gbk&#x27;</span> | <span class="hljs-string">&#x27;auto&#x27;</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>前端判断是否过期：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createResourceValidator = (<br>  <span class="hljs-attr">opts</span>: <span class="hljs-title class_">ResourceValidatorOptions</span> = &#123;&#125;<br>): <span class="hljs-function"><span class="hljs-params">ResourceValidator</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> skew = opts.<span class="hljs-property">skewMs</span> ?? <span class="hljs-number">30_000</span>;            <span class="hljs-comment">// 默认 30s 安全边界</span><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">isExpired</span>(<span class="hljs-params">resource</span>) &#123;<br>      <span class="hljs-keyword">if</span> (resource.<span class="hljs-property">expiresAt</span> === <span class="hljs-literal">undefined</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>      <span class="hljs-keyword">return</span> resource.<span class="hljs-property">expiresAt</span> - <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>() &lt; skew;<br>    &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>对比 TTL 的变化：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>TTL</th>
+<th>expiresAt</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>过期判定基准</td>
+<td><code>Date.now() - createdAt &gt; ttl</code></td>
+<td><code>expiresAt - Date.now() &lt; skew</code></td>
+</tr>
+<tr>
+<td>谁决定有效期</td>
+<td>前端猜测</td>
+<td>后端权威</td>
+</tr>
+<tr>
+<td>多子应用一致性</td>
+<td>各算各的</td>
+<td>共享同一个 <code>expiresAt</code></td>
+</tr>
+<tr>
+<td>不同文件差异化</td>
+<td>难</td>
+<td>天然支持</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-时钟抖动边界（skewMs）"><a href="#4-2-时钟抖动边界（skewMs）" class="headerlink" title="4.2 时钟抖动边界（skewMs）"></a>4.2 时钟抖动边界（skewMs）</h3><p>注意 <code>skew</code> 这个细节。严格比较 <code>expiresAt &lt; Date.now()</code> 会导致一个临界问题：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">T</span>=<span class="hljs-number">0</span>         : 缓存写入，expiresAt = <span class="hljs-number">300</span>s 后<br><span class="hljs-attribute">T</span>=<span class="hljs-number">299</span>.<span class="hljs-number">9</span>s    : isExpired? → false（还有 <span class="hljs-number">0</span>.<span class="hljs-number">1</span>s 寿命）<br><span class="hljs-attribute">T</span>=<span class="hljs-number">299</span>.<span class="hljs-number">9</span>s+ε  : 拿着这个 URL 发起 fetch<br><span class="hljs-attribute">T</span>=<span class="hljs-number">300</span>s+δ    : 后端判定已过期，返回 <span class="hljs-number">403</span><br></code></pre></td></tr></table></figure>
+
+<p>网络 RTT + 后端时钟轻微不同步，就会在最后 1 秒产生 403。加一个 <strong>30 秒安全边界</strong>，让前端在离过期还剩 30s 时就主动认为”过期”，<strong>提前触发重新签发</strong>，避免临界态 403。</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">return</span> resource.<span class="hljs-property">expiresAt</span> - <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>() &lt; skew;<br><span class="hljs-comment">// 离过期剩余 &lt; 30s → 视为过期，不再使用</span><br></code></pre></td></tr></table></figure>
+
+<p>这个边界不消除时钟漂移，只是<strong>让前端倾向于偏保守</strong>，把可用窗口缩小 30s，用短暂的失效换更高的成功率。</p>
+<h3 id="4-3-expiresAt-仍然依赖-Date-now-吗"><a href="#4-3-expiresAt-仍然依赖-Date-now-吗" class="headerlink" title="4.3 expiresAt 仍然依赖 Date.now() 吗"></a>4.3 <code>expiresAt</code> 仍然依赖 <code>Date.now()</code> 吗</h3><p>是，但<strong>只在判定”还要不要使用”时使用，不作为过期基准</strong>。</p>
+<ul>
+<li>TTL：<code>Date.now()</code> 用来算”已经过了多久”，一旦前端时钟跳 1h，TTL 就错 1h</li>
+<li>expiresAt：<code>Date.now()</code> 用来回答”从现在出发，还有多少秒到 expiresAt”；即使前端时钟跳前，也只是<strong>提前认为过期并重新签发</strong>，最差结果是多一次网络请求，不会用到已失效 URL</li>
+</ul>
+<p>后者把”时钟漂移”的代价从<strong>拿到错误的 URL</strong>降级为<strong>多发一次请求</strong>。</p>
+<h2 id="五、Scope：另一个维度的隔离"><a href="#五、Scope：另一个维度的隔离" class="headerlink" title="五、Scope：另一个维度的隔离"></a>五、Scope：另一个维度的隔离</h2><p>时间维度有了，身份维度怎么办？</p>
+<h3 id="5-1-PreviewScope-类型定义"><a href="#5-1-PreviewScope-类型定义" class="headerlink" title="5.1 PreviewScope 类型定义"></a>5.1 <code>PreviewScope</code> 类型定义</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-comment">/** 稳定 key；通常为 `$&#123;tenantId&#125;::$&#123;workspaceId&#125;` */</span><br>  <span class="hljs-title function_">getKey</span>(): <span class="hljs-built_in">string</span>;<br>  <span class="hljs-comment">/** 订阅 scope 变更；切租户 / 切工作空间 / 登出时广播 */</span><br>  <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-attr">cb</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>): <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>两个方法各自对应一个职责：</p>
+<ul>
+<li><code>getKey()</code>：<strong>给缓存分租</strong>，不同 scope 不会互相命中</li>
+<li><code>onInvalidate(cb)</code>：<strong>身份变化时广播</strong>，让所有订阅者立即清空本地缓存</li>
+</ul>
+<h3 id="5-2-Shell-侧实现"><a href="#5-2-Shell-侧实现" class="headerlink" title="5.2 Shell 侧实现"></a>5.2 Shell 侧实现</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// cloud/src/shell/file-preview/scope.ts</span><br><span class="hljs-keyword">import</span> &#123; watch &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vue&#x27;</span>;<br><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">PreviewScope</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@co/file-preview&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; useUserStore &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/features/auth/store/user&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; useModelWorkspaceStore &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/features/workspace-switcher/store/model-workspace&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; emitter &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/shared/utils/bus&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; <span class="hljs-variable constant_">AUTH_EVENTS</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/shell/events&#x27;</span>;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createPreviewScope</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-keyword">const</span> userStore = <span class="hljs-title function_">useUserStore</span>();<br>  <span class="hljs-keyword">const</span> wsStore = <span class="hljs-title function_">useModelWorkspaceStore</span>();<br>  <span class="hljs-keyword">const</span> listeners = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Set</span>&lt;<span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>&gt;();<br><br>  <span class="hljs-keyword">const</span> invalidate = (): <span class="hljs-function"><span class="hljs-params">void</span> =&gt;</span> &#123;<br>    listeners.<span class="hljs-title function_">forEach</span>(<span class="hljs-function"><span class="hljs-params">cb</span> =&gt;</span> <span class="hljs-title function_">cb</span>());<br>  &#125;;<br><br>  <span class="hljs-title function_">watch</span>(<span class="hljs-function">() =&gt;</span> userStore.<span class="hljs-property">tenantId</span>, invalidate);<br>  <span class="hljs-title function_">watch</span>(<span class="hljs-function">() =&gt;</span> wsStore.<span class="hljs-property">modelWorkspace</span>.<span class="hljs-property">containerId</span>, invalidate);<br>  emitter.<span class="hljs-title function_">on</span>(<span class="hljs-variable constant_">AUTH_EVENTS</span>.<span class="hljs-property">LOGOUT</span>, invalidate);<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-attr">getKey</span>: <span class="hljs-function">() =&gt;</span><br>      <span class="hljs-string">`<span class="hljs-subst">$&#123;userStore.tenantId&#125;</span>::<span class="hljs-subst">$&#123;wsStore.modelWorkspace.containerId&#125;</span>`</span>,<br>    <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-params">cb</span>) &#123;<br>      listeners.<span class="hljs-title function_">add</span>(cb);<br>      <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> listeners.<span class="hljs-title function_">delete</span>(cb);<br>    &#125;<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>三个失效源：</p>
+<ol>
+<li><code>tenantId</code> 变化（切租户）</li>
+<li><code>workspace.containerId</code> 变化（切工作空间）</li>
+<li><code>AUTH_EVENTS.LOGOUT</code> 事件（登出）</li>
+</ol>
+<p>只要任一触发，所有订阅者同步清空。</p>
+<h3 id="5-3-子应用侧实现（micro-app-场景）"><a href="#5-3-子应用侧实现（micro-app-场景）" class="headerlink" title="5.3 子应用侧实现（micro-app 场景）"></a>5.3 子应用侧实现（micro-app 场景）</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// apps/sim-data-mgt/src/shared/file-preview/scope.ts</span><br><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">PreviewScope</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@co/file-preview&#x27;</span>;<br><br><span class="hljs-keyword">interface</span> <span class="hljs-title class_">YSContext</span> &#123;<br>  <span class="hljs-attr">tenantId</span>?: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-attr">currentWorkspace</span>?: &#123; <span class="hljs-attr">containerId</span>?: <span class="hljs-built_in">string</span> &#125;;<br>&#125;<br><br><span class="hljs-keyword">function</span> <span class="hljs-title function_">readContext</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">YSContext</span> &#123;<br>  <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> <span class="hljs-variable language_">window</span> === <span class="hljs-string">&#x27;undefined&#x27;</span>) <span class="hljs-keyword">return</span> &#123;&#125;;<br>  <span class="hljs-keyword">const</span> ctx = (<span class="hljs-variable language_">window</span> <span class="hljs-keyword">as</span> <span class="hljs-built_in">unknown</span> <span class="hljs-keyword">as</span> &#123; $YS?: <span class="hljs-title class_">YSContext</span> &#125;).<span class="hljs-property">$YS</span>;<br>  <span class="hljs-keyword">return</span> ctx ?? &#123;&#125;;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createSubAppPreviewScope</span>(<span class="hljs-params"></span>): <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">getKey</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-keyword">const</span> &#123; tenantId = <span class="hljs-string">&#x27;&#x27;</span>, currentWorkspace &#125; = <span class="hljs-title function_">readContext</span>();<br>      <span class="hljs-keyword">return</span> <span class="hljs-string">`<span class="hljs-subst">$&#123;tenantId&#125;</span>::<span class="hljs-subst">$&#123;currentWorkspace?.containerId ?? <span class="hljs-string">&#x27;&#x27;</span>&#125;</span>`</span>;<br>    &#125;,<br>    <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> <span class="hljs-literal">undefined</span>;   <span class="hljs-comment">// noop</span><br>    &#125;<br>  &#125;;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>为什么子应用的 <code>onInvalidate</code> 是 noop？</p>
+<p>因为在 @micro-zoe&#x2F;micro-app 架构下，<strong>切换工作空间会卸载整个子应用实例</strong>。子应用的缓存会随 Vue app 销毁一起 GC，不需要显式订阅。Shell 侧的 Host 才需要订阅（Shell 是常驻实例）。</p>
+<h3 id="5-4-为什么-Vue-provide-inject-不能跨子应用"><a href="#5-4-为什么-Vue-provide-inject-不能跨子应用" class="headerlink" title="5.4 为什么 Vue provide&#x2F;inject 不能跨子应用"></a>5.4 为什么 Vue provide&#x2F;inject 不能跨子应用</h3><p><code>provide/inject</code> 依赖 Vue 组件树。每个 micro-app 是一个<strong>独立的 Vue 实例</strong>，各自有自己的根组件、自己的 inject 上下文。Shell 的 <code>provide</code> 根本不会出现在子应用的 inject 查找链里。</p>
+<p>结果是：<strong>每个子应用必须各自完整装配一遍 registry + scope + dataSource + Host</strong>。这是 micro-frontend 的沙箱代价。</p>
+<h2 id="六、源码剖析：Scope-aware-LRU-Cache"><a href="#六、源码剖析：Scope-aware-LRU-Cache" class="headerlink" title="六、源码剖析：Scope-aware LRU Cache"></a>六、源码剖析：Scope-aware LRU Cache</h2><h3 id="6-1-完整实现"><a href="#6-1-完整实现" class="headerlink" title="6.1 完整实现"></a>6.1 完整实现</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// packages/file-preview/src/infra/cache.ts</span><br><span class="hljs-keyword">import</span> <span class="hljs-keyword">type</span> &#123; <span class="hljs-title class_">PreviewResource</span>, <span class="hljs-title class_">PreviewScope</span> &#125; <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;../types&#x27;</span>;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewCache</span> &#123;<br>  <span class="hljs-title function_">get</span>(<span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">PreviewResource</span> | <span class="hljs-literal">undefined</span>;<br>  <span class="hljs-title function_">set</span>(<span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span>): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">delete</span>(<span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">clear</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">dispose</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">size</span>: <span class="hljs-built_in">number</span>;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewCacheOptions</span> &#123;<br>  <span class="hljs-comment">/** LRU 上限，默认 20 */</span><br>  <span class="hljs-attr">limit</span>?: <span class="hljs-built_in">number</span>;<br>&#125;<br><br><span class="hljs-keyword">const</span> <span class="hljs-variable constant_">DEFAULT_LIMIT</span> = <span class="hljs-number">20</span>;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createPreviewCache = (<br>  <span class="hljs-attr">scope</span>: <span class="hljs-title class_">PreviewScope</span>,<br>  <span class="hljs-attr">opts</span>: <span class="hljs-title class_">PreviewCacheOptions</span> = &#123;&#125;<br>): <span class="hljs-function"><span class="hljs-params">PreviewCache</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">const</span> limit = opts.<span class="hljs-property">limit</span> &amp;&amp; opts.<span class="hljs-property">limit</span> &gt; <span class="hljs-number">0</span> ? opts.<span class="hljs-property">limit</span> : <span class="hljs-variable constant_">DEFAULT_LIMIT</span>;<br>  <span class="hljs-comment">// Map 的 insertion order 即 LRU 顺序（最新的在尾部）</span><br>  <span class="hljs-keyword">const</span> store = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-title class_">PreviewResource</span>&gt;();<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">buildKey</span> = (<span class="hljs-params"><span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span></span>) =&gt; <span class="hljs-string">`<span class="hljs-subst">$&#123;scope.getKey()&#125;</span>:<span class="hljs-subst">$&#123;fileId&#125;</span>`</span>;<br><br>  <span class="hljs-keyword">const</span> unsubscribe = scope.<span class="hljs-title function_">onInvalidate</span>(<span class="hljs-function">() =&gt;</span> &#123;<br>    store.<span class="hljs-title function_">clear</span>();<br>  &#125;);<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">touch</span> = (<span class="hljs-params"><span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">value</span>: <span class="hljs-title class_">PreviewResource</span></span>) =&gt; &#123;<br>    store.<span class="hljs-title function_">delete</span>(key);<br>    store.<span class="hljs-title function_">set</span>(key, value);<br>  &#125;;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">get</span>(<span class="hljs-params">fileId</span>) &#123;<br>      <span class="hljs-keyword">const</span> key = <span class="hljs-title function_">buildKey</span>(fileId);<br>      <span class="hljs-keyword">const</span> v = store.<span class="hljs-title function_">get</span>(key);<br>      <span class="hljs-keyword">if</span> (v) <span class="hljs-title function_">touch</span>(key, v);<br>      <span class="hljs-keyword">return</span> v;<br>    &#125;,<br>    <span class="hljs-title function_">set</span>(<span class="hljs-params">fileId, resource</span>) &#123;<br>      <span class="hljs-keyword">const</span> key = <span class="hljs-title function_">buildKey</span>(fileId);<br>      <span class="hljs-title function_">touch</span>(key, resource);<br>      <span class="hljs-keyword">while</span> (store.<span class="hljs-property">size</span> &gt; limit) &#123;<br>        <span class="hljs-keyword">const</span> first = store.<span class="hljs-title function_">keys</span>().<span class="hljs-title function_">next</span>();<br>        <span class="hljs-keyword">if</span> (first.<span class="hljs-property">done</span>) <span class="hljs-keyword">break</span>;<br>        store.<span class="hljs-title function_">delete</span>(first.<span class="hljs-property">value</span>);<br>      &#125;<br>    &#125;,<br>    <span class="hljs-title function_">delete</span>(<span class="hljs-params">fileId</span>) &#123;<br>      store.<span class="hljs-title function_">delete</span>(<span class="hljs-title function_">buildKey</span>(fileId));<br>    &#125;,<br>    <span class="hljs-title function_">clear</span>(<span class="hljs-params"></span>) &#123;<br>      store.<span class="hljs-title function_">clear</span>();<br>    &#125;,<br>    <span class="hljs-title function_">dispose</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-title function_">unsubscribe</span>();<br>      store.<span class="hljs-title function_">clear</span>();<br>    &#125;,<br>    <span class="hljs-keyword">get</span> <span class="hljs-title function_">size</span>() &#123;<br>      <span class="hljs-keyword">return</span> store.<span class="hljs-property">size</span>;<br>    &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<h3 id="6-2-逐行解读"><a href="#6-2-逐行解读" class="headerlink" title="6.2 逐行解读"></a>6.2 逐行解读</h3><p><strong>第 23 行</strong>：<code>const store = new Map&lt;string, PreviewResource&gt;();</code></p>
+<p>用原生 <code>Map</code>。JS 的 <code>Map</code> 严格保留<strong>插入顺序</strong>，这正是 LRU 所需的”最新访问在尾部，最老在头部”语义。无需额外的双向链表。</p>
+<p><strong>第 26 行</strong>：<code>buildKey(fileId) = $&#123;scope.getKey()&#125;:$&#123;fileId&#125;</code></p>
+<p>每次读写都<strong>现场求值</strong> <code>scope.getKey()</code>。这意味着即使外部 scope 没来得及广播 invalidate，只要 scope 的 key 变了，旧缓存的 key 也不会被再次命中（新 key 拼出来不同）。这是一层<strong>被动</strong>防护。</p>
+<p><strong>第 28 行</strong>：<code>scope.onInvalidate(() =&gt; store.clear())</code></p>
+<p>订阅<strong>主动失效</strong>。切租户 &#x2F; 切工作空间 &#x2F; 登出时，Map 立刻清空。这是另一层防护。</p>
+<p>被动 + 主动双保险：即使广播丢失，拼 key 也能拦住；即使 key 拼错，广播也能清干净。</p>
+<p><strong>第 31-34 行</strong>：<code>touch(key, value)</code> 先 delete 再 set</p>
+<p>LRU 的核心技巧：想让某个 key “变新”，直接 delete + set，它就跳到 Map 的尾部。这是 Map 的 O(1) 操作（哈希表 + 链表）。</p>
+<p><strong>第 40 行</strong>：<code>get</code> 命中后也调用 <code>touch</code></p>
+<p>这是 LRU 和 FIFO 的分水岭。**访问也算一次”使用”**，否则退化成 FIFO。</p>
+<p><strong>第 48-52 行</strong>：<code>while (store.size &gt; limit)</code> 淘汰</p>
+<p>超限时从 <code>store.keys().next()</code>（即最老的）开始删，直到 size ≤ limit。用 <code>while</code> 而非 <code>if</code> 是为了应对极端情况下多于 1 条超限（虽然单次 <code>set</code> 通常只超 1 条）。</p>
+<p><strong>第 60 行</strong>：<code>dispose()</code> 取消订阅 + 清空</p>
+<p>Host <code>onBeforeUnmount</code> 调用，防止内存泄漏（scope 还持有 listener 引用，Host 已经销毁）。</p>
+<h3 id="6-3-Controller-如何使用-Cache-Validator"><a href="#6-3-Controller-如何使用-Cache-Validator" class="headerlink" title="6.3 Controller 如何使用 Cache + Validator"></a>6.3 Controller 如何使用 Cache + Validator</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// packages/file-preview/src/controller/controller.ts （节选）</span><br><span class="hljs-keyword">const</span> fetchResource = <span class="hljs-title function_">async</span> (<br>  <span class="hljs-attr">file</span>: <span class="hljs-title class_">PreviewFile</span>,<br>  <span class="hljs-attr">signal</span>: <span class="hljs-title class_">AbortSignal</span>,<br>  <span class="hljs-attr">source</span>: <span class="hljs-title class_">PreviewDataSource</span><br>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-title class_">PreviewResource</span>&gt; =&gt; &#123;<br>  <span class="hljs-keyword">const</span> cached = cache.<span class="hljs-title function_">get</span>(file.<span class="hljs-property">id</span>);<br>  <span class="hljs-keyword">if</span> (cached &amp;&amp; !validator.<span class="hljs-title function_">isExpired</span>(cached)) &#123;<br>    <span class="hljs-keyword">return</span> cached;                <span class="hljs-comment">// 命中且未过期</span><br>  &#125;<br>  <span class="hljs-keyword">if</span> (cached) &#123;<br>    cache.<span class="hljs-title function_">delete</span>(file.<span class="hljs-property">id</span>);        <span class="hljs-comment">// 过期 → 主动删除（避免占 LRU 位）</span><br>  &#125;<br>  <span class="hljs-keyword">const</span> resource = <span class="hljs-keyword">await</span> source.<span class="hljs-title function_">resolve</span>(file, &#123; signal &#125;);<br>  cache.<span class="hljs-title function_">set</span>(file.<span class="hljs-property">id</span>, resource);<br>  <span class="hljs-keyword">return</span> resource;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>四步：</p>
+<ol>
+<li>读缓存</li>
+<li>命中且未过期 → 直接返回</li>
+<li>命中但过期 → 删除后重取</li>
+<li>未命中 → 直接请求 + 存入</li>
+</ol>
+<p>过期项主动删除而非”原地更新”，理由是避免”过期的 LRU 位”被新鲜项挤到后面去（LRU 的语义是”最近使用”，不是”最近写入”）。</p>
+<h2 id="七、AbortController-与缓存的协同"><a href="#七、AbortController-与缓存的协同" class="headerlink" title="七、AbortController 与缓存的协同"></a>七、AbortController 与缓存的协同</h2><p>缓存层解决了”数据能否复用”，但还有一个容易被忽略的竞态：<strong>缓存里已经有，但请求仍在跑</strong>。</p>
+<h3 id="7-1-问题场景"><a href="#7-1-问题场景" class="headerlink" title="7.1 问题场景"></a>7.1 问题场景</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs routeros"><span class="hljs-attribute">T</span>=0   : open(fileA) → 没命中缓存 → 发起 fetch(fileA)<br><span class="hljs-attribute">T</span>=1   : 用户急切点关闭弹窗<br><span class="hljs-attribute">T</span>=2   : open(fileA) 又被点开<br><span class="hljs-attribute">T</span>=3   : 第一个 fetch(fileA) 返回，写入 cache<br><span class="hljs-attribute">T</span>=4   : 第二个 open(fileA) 读 cache，命中 → 立即渲染<br><span class="hljs-attribute">T</span>=5   : 用户关闭<br><span class="hljs-attribute">T</span>=6   : （原本 <span class="hljs-attribute">T</span>=3 的）第二个 fetch 还在跑，返回后写入一次过期 cache<br></code></pre></td></tr></table></figure>
+
+<p>可能出现：</p>
+<ul>
+<li>请求泄漏（用户已经关弹窗但请求还在占带宽）</li>
+<li>状态混乱（第二次 fetch 的 response 覆盖第一次的 cache）</li>
+<li>组件已卸载但回调仍在 setState → Vue 控制台红字</li>
+</ul>
+<h3 id="7-2-AbortGroup-独占语义"><a href="#7-2-AbortGroup-独占语义" class="headerlink" title="7.2 AbortGroup 独占语义"></a>7.2 <code>AbortGroup</code> 独占语义</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// packages/file-preview/src/infra/abort-group.ts</span><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> createAbortGroup = (): <span class="hljs-function"><span class="hljs-params">AbortGroup</span> =&gt;</span> &#123;<br>  <span class="hljs-keyword">let</span> <span class="hljs-attr">current</span>: <span class="hljs-title class_">AbortController</span> | <span class="hljs-literal">null</span> = <span class="hljs-literal">null</span>;<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">safeAbort</span> = (<span class="hljs-params"><span class="hljs-attr">c</span>: <span class="hljs-title class_">AbortController</span> | <span class="hljs-literal">null</span></span>) =&gt; &#123;<br>    <span class="hljs-keyword">if</span> (!c) <span class="hljs-keyword">return</span>;<br>    <span class="hljs-keyword">if</span> (c.<span class="hljs-property">signal</span>.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;<br>    c.<span class="hljs-title function_">abort</span>();<br>  &#125;;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">spawn</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-title function_">safeAbort</span>(current);         <span class="hljs-comment">// 关键：启动新的就先中止旧的</span><br>      current = <span class="hljs-keyword">new</span> <span class="hljs-title class_">AbortController</span>();<br>      <span class="hljs-keyword">return</span> current;<br>    &#125;,<br>    <span class="hljs-title function_">abort</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-title function_">safeAbort</span>(current);<br>    &#125;,<br>    <span class="hljs-keyword">get</span> <span class="hljs-title function_">isAborted</span>() &#123;<br>      <span class="hljs-keyword">return</span> current?.<span class="hljs-property">signal</span>.<span class="hljs-property">aborted</span> ?? <span class="hljs-literal">false</span>;<br>    &#125;<br>  &#125;;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p><strong>独占语义</strong>：同时最多有一个”活的” controller。<code>spawn()</code> 会先把上一个 abort 掉。</p>
+<p>Controller 每次 <code>open()</code> 调用一次 <code>spawn()</code>：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">const</span> controller = abortGroup.<span class="hljs-title function_">spawn</span>();    <span class="hljs-comment">// 旧的自动 abort</span><br><span class="hljs-keyword">const</span> signal = controller.<span class="hljs-property">signal</span>;<br><span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;resolving&#x27;</span>, file &#125;);<br><br><span class="hljs-keyword">try</span> &#123;<br>  <span class="hljs-keyword">const</span> resource = <span class="hljs-keyword">await</span> <span class="hljs-title function_">fetchResource</span>(file, signal, dataSource);<br>  <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;             <span class="hljs-comment">// 请求回来时如已 abort，丢弃结果</span><br>  <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;rendering&#x27;</span>, file, resource &#125;);<br>&#125; <span class="hljs-keyword">catch</span> (err) &#123;<br>  <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;             <span class="hljs-comment">// abort 异常静默吞</span><br>  <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;error&#x27;</span>, file, <span class="hljs-attr">error</span>: err &#125;);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>“<strong>abort 时不设置 state</strong>“这条规则是关键：</p>
+<ul>
+<li>切换预览另一个文件 → 旧 controller abort → 旧分支 early return，不会污染新状态</li>
+<li>关闭弹窗 → abort → state 已经被 <code>close()</code> 置为 idle，不会被旧请求倒回 <code>error</code></li>
+<li>Host 卸载 → <code>dispose()</code> → abort → 幽灵请求被丢弃</li>
+</ul>
+<h3 id="7-3-Cache-与-Abort-的交互"><a href="#7-3-Cache-与-Abort-的交互" class="headerlink" title="7.3 Cache 与 Abort 的交互"></a>7.3 Cache 与 Abort 的交互</h3><p>有一个微妙的问题：<strong>abort 后要不要把 cache 里对应的 entry 也删掉</strong>？</p>
+<p>答案：<strong>不要</strong>。</p>
+<p>场景：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs routeros"><span class="hljs-attribute">T</span>=0  : open(file-1) → cache miss → fetch 启动<br><span class="hljs-attribute">T</span>=1  : fetch 返回，cache.<span class="hljs-built_in">set</span>(file-1, resource)<br><span class="hljs-attribute">T</span>=2  : 渲染完成<br><span class="hljs-attribute">T</span>=3  : 用户关闭（abort）<br><span class="hljs-attribute">T</span>=4  : 用户再开 file-1 → cache hit 直接复用<br></code></pre></td></tr></table></figure>
+
+<p>T&#x3D;3 的 abort 不应该把 T&#x3D;1 写入的 cache 清掉——那份数据是有效的。**abort 中止的是”尚未完成的 I&#x2F;O”，不是”已经完成的结果”**。</p>
+<p>反过来，如果 fetch 还没完成就 abort：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs routeros"><span class="hljs-attribute">T</span>=0  : open(file-1) → cache miss → fetch 启动<br><span class="hljs-attribute">T</span>=1  : abort（此时 fetch 还没返回）<br><span class="hljs-attribute">T</span>=2  : fetch 被 abort 后抛出 AbortError<br><span class="hljs-attribute">T</span>=3  : 走 catch 分支，但 signal.aborted 为 <span class="hljs-literal">true</span> 所以不 setState<br><span class="hljs-attribute">T</span>=4  : cache 里什么都没写（cache.<span class="hljs-built_in">set</span> 在 fetch.then 之后）<br></code></pre></td></tr></table></figure>
+
+<p>天然正确——因为 <code>cache.set</code> 在 <code>await fetchResource</code> 之后。abort 了就走不到那一行。</p>
+<h2 id="八、动手-Demo：最小可运行的-Scope-aware-LRU-Cache"><a href="#八、动手-Demo：最小可运行的-Scope-aware-LRU-Cache" class="headerlink" title="八、动手 Demo：最小可运行的 Scope-aware LRU Cache"></a>八、动手 Demo：最小可运行的 Scope-aware LRU Cache</h2><p>一个纯粹的、可以直接 <code>npm i &amp;&amp; node index.mjs</code> 运行的 Demo。</p>
+<h3 id="8-1-项目结构"><a href="#8-1-项目结构" class="headerlink" title="8.1 项目结构"></a>8.1 项目结构</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight d"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs d"><span class="hljs-keyword">scope</span>-cache-demo/<br>├── <span class="hljs-keyword">package</span>.json<br>├── index.mjs<br>└── test.mjs<br></code></pre></td></tr></table></figure>
+
+<h3 id="8-2-package-json"><a href="#8-2-package-json" class="headerlink" title="8.2 package.json"></a>8.2 package.json</h3><p class="code-caption" data-lang="json" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-punctuation">&#123;</span><br>  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;scope-cache-demo&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;version&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0.1.0&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;module&quot;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;scripts&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><br>    <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;node index.mjs&quot;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-attr">&quot;test&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;node test.mjs&quot;</span><br>  <span class="hljs-punctuation">&#125;</span><br><span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="8-3-index-mjs（核心实现）"><a href="#8-3-index-mjs（核心实现）" class="headerlink" title="8.3 index.mjs（核心实现）"></a>8.3 index.mjs（核心实现）</h3><p class="code-caption" data-lang="javascript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br></pre></td><td class="code"><pre><code class="hljs javascript"><span class="hljs-comment">// index.mjs</span><br><span class="hljs-comment">// 一个最小的 scope-aware LRU 缓存，演示三个核心能力：</span><br><span class="hljs-comment">// 1. 按 scope.getKey() 分租</span><br><span class="hljs-comment">// 2. scope.onInvalidate 广播触发清空</span><br><span class="hljs-comment">// 3. resource.expiresAt + skewMs 判定过期</span><br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createScope</span>(<span class="hljs-params">initialTenant, initialWorkspace</span>) &#123;<br>  <span class="hljs-keyword">let</span> tenant = initialTenant;<br>  <span class="hljs-keyword">let</span> workspace = initialWorkspace;<br>  <span class="hljs-keyword">const</span> listeners = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Set</span>();<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">invalidate</span> = (<span class="hljs-params"></span>) =&gt; &#123;<br>    listeners.<span class="hljs-title function_">forEach</span>(<span class="hljs-function"><span class="hljs-params">cb</span> =&gt;</span> <span class="hljs-title function_">cb</span>());<br>  &#125;;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">getKey</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-keyword">return</span> <span class="hljs-string">`<span class="hljs-subst">$&#123;tenant&#125;</span>::<span class="hljs-subst">$&#123;workspace&#125;</span>`</span>;<br>    &#125;,<br>    <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-params">cb</span>) &#123;<br>      listeners.<span class="hljs-title function_">add</span>(cb);<br>      <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> listeners.<span class="hljs-title function_">delete</span>(cb);<br>    &#125;,<br>    <span class="hljs-title function_">setTenant</span>(<span class="hljs-params">next</span>) &#123;<br>      <span class="hljs-keyword">if</span> (tenant === next) <span class="hljs-keyword">return</span>;<br>      tenant = next;<br>      <span class="hljs-title function_">invalidate</span>();<br>    &#125;,<br>    <span class="hljs-title function_">setWorkspace</span>(<span class="hljs-params">next</span>) &#123;<br>      <span class="hljs-keyword">if</span> (workspace === next) <span class="hljs-keyword">return</span>;<br>      workspace = next;<br>      <span class="hljs-title function_">invalidate</span>();<br>    &#125;<br>  &#125;;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createResourceValidator</span>(<span class="hljs-params">skewMs = <span class="hljs-number">30_000</span></span>) &#123;<br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">isExpired</span>(<span class="hljs-params">resource</span>) &#123;<br>      <span class="hljs-keyword">if</span> (resource.<span class="hljs-property">expiresAt</span> === <span class="hljs-literal">undefined</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>      <span class="hljs-keyword">return</span> resource.<span class="hljs-property">expiresAt</span> - <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>() &lt; skewMs;<br>    &#125;<br>  &#125;;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">createCache</span>(<span class="hljs-params">scope, limit = <span class="hljs-number">20</span></span>) &#123;<br>  <span class="hljs-keyword">const</span> store = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Map</span>();<br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">buildKey</span> = id =&gt; <span class="hljs-string">`<span class="hljs-subst">$&#123;scope.getKey()&#125;</span>:<span class="hljs-subst">$&#123;id&#125;</span>`</span>;<br>  <span class="hljs-keyword">const</span> unsubscribe = scope.<span class="hljs-title function_">onInvalidate</span>(<span class="hljs-function">() =&gt;</span> store.<span class="hljs-title function_">clear</span>());<br><br>  <span class="hljs-keyword">const</span> <span class="hljs-title function_">touch</span> = (<span class="hljs-params">key, value</span>) =&gt; &#123;<br>    store.<span class="hljs-title function_">delete</span>(key);<br>    store.<span class="hljs-title function_">set</span>(key, value);<br>  &#125;;<br><br>  <span class="hljs-keyword">return</span> &#123;<br>    <span class="hljs-title function_">get</span>(<span class="hljs-params">id</span>) &#123;<br>      <span class="hljs-keyword">const</span> key = <span class="hljs-title function_">buildKey</span>(id);<br>      <span class="hljs-keyword">const</span> v = store.<span class="hljs-title function_">get</span>(key);<br>      <span class="hljs-keyword">if</span> (v) <span class="hljs-title function_">touch</span>(key, v);<br>      <span class="hljs-keyword">return</span> v;<br>    &#125;,<br>    <span class="hljs-title function_">set</span>(<span class="hljs-params">id, resource</span>) &#123;<br>      <span class="hljs-keyword">const</span> key = <span class="hljs-title function_">buildKey</span>(id);<br>      <span class="hljs-title function_">touch</span>(key, resource);<br>      <span class="hljs-keyword">while</span> (store.<span class="hljs-property">size</span> &gt; limit) &#123;<br>        <span class="hljs-keyword">const</span> first = store.<span class="hljs-title function_">keys</span>().<span class="hljs-title function_">next</span>();<br>        <span class="hljs-keyword">if</span> (first.<span class="hljs-property">done</span>) <span class="hljs-keyword">break</span>;<br>        store.<span class="hljs-title function_">delete</span>(first.<span class="hljs-property">value</span>);<br>      &#125;<br>    &#125;,<br>    <span class="hljs-title function_">delete</span>(<span class="hljs-params">id</span>) &#123;<br>      store.<span class="hljs-title function_">delete</span>(<span class="hljs-title function_">buildKey</span>(id));<br>    &#125;,<br>    <span class="hljs-title function_">clear</span>(<span class="hljs-params"></span>) &#123;<br>      store.<span class="hljs-title function_">clear</span>();<br>    &#125;,<br>    <span class="hljs-title function_">dispose</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-title function_">unsubscribe</span>();<br>      store.<span class="hljs-title function_">clear</span>();<br>    &#125;,<br>    <span class="hljs-keyword">get</span> <span class="hljs-title function_">size</span>() &#123;<br>      <span class="hljs-keyword">return</span> store.<span class="hljs-property">size</span>;<br>    &#125;,<br>    <span class="hljs-title function_">keys</span>(<span class="hljs-params"></span>) &#123;<br>      <span class="hljs-keyword">return</span> [...store.<span class="hljs-title function_">keys</span>()];<br>    &#125;<br>  &#125;;<br>&#125;<br><br><span class="hljs-comment">// ========== 演示 ==========</span><br><span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">demo</span>(<span class="hljs-params"></span>) &#123;<br>  <span class="hljs-keyword">const</span> scope = <span class="hljs-title function_">createScope</span>(<span class="hljs-string">&#x27;tenant-A&#x27;</span>, <span class="hljs-string">&#x27;workspace-1&#x27;</span>);<br>  <span class="hljs-keyword">const</span> cache = <span class="hljs-title function_">createCache</span>(scope, <span class="hljs-number">3</span>);<br>  <span class="hljs-keyword">const</span> validator = <span class="hljs-title function_">createResourceValidator</span>(<span class="hljs-number">30_000</span>);<br><br>  <span class="hljs-keyword">const</span> now = <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>();<br>  cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>, &#123; <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;https://cdn/file-1.xlsx&#x27;</span>, <span class="hljs-attr">expiresAt</span>: now + <span class="hljs-number">60_000</span> &#125;);<br>  cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-2&#x27;</span>, &#123; <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;https://cdn/file-2.pdf&#x27;</span>, <span class="hljs-attr">expiresAt</span>: now + <span class="hljs-number">60_000</span> &#125;);<br>  cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-3&#x27;</span>, &#123; <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;https://cdn/file-3.docx&#x27;</span>, <span class="hljs-attr">expiresAt</span>: now + <span class="hljs-number">10_000</span> &#125;);<br><br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Keys after 3 writes:&#x27;</span>, cache.<span class="hljs-title function_">keys</span>());<br><br>  <span class="hljs-keyword">const</span> r3 = cache.<span class="hljs-title function_">get</span>(<span class="hljs-string">&#x27;file-3&#x27;</span>);<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;file-3 resource:&#x27;</span>, r3);<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;file-3 expired?&#x27;</span>, validator.<span class="hljs-title function_">isExpired</span>(r3));<br><br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;\n-- 触发 LRU 淘汰：写入第 4 条 --&#x27;</span>);<br>  cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-4&#x27;</span>, &#123; <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;https://cdn/file-4.csv&#x27;</span>, <span class="hljs-attr">expiresAt</span>: now + <span class="hljs-number">60_000</span> &#125;);<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Keys after 4th write:&#x27;</span>, cache.<span class="hljs-title function_">keys</span>());<br><br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;\n-- 切换工作空间：触发 onInvalidate --&#x27;</span>);<br>  scope.<span class="hljs-title function_">setWorkspace</span>(<span class="hljs-string">&#x27;workspace-2&#x27;</span>);<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Keys after workspace switch:&#x27;</span>, cache.<span class="hljs-title function_">keys</span>());<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;cache.size =&#x27;</span>, cache.<span class="hljs-property">size</span>);<br><br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;\n-- 新 scope 写入新数据 --&#x27;</span>);<br>  cache.<span class="hljs-title function_">set</span>(<span class="hljs-string">&#x27;file-1&#x27;</span>, &#123; <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;https://cdn/WS2/file-1.xlsx&#x27;</span>, <span class="hljs-attr">expiresAt</span>: now + <span class="hljs-number">60_000</span> &#125;);<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Keys:&#x27;</span>, cache.<span class="hljs-title function_">keys</span>());<br><br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;\n-- 切回 workspace-1，之前数据不复现（清空是不可逆的）--&#x27;</span>);<br>  scope.<span class="hljs-title function_">setWorkspace</span>(<span class="hljs-string">&#x27;workspace-1&#x27;</span>);<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Keys:&#x27;</span>, cache.<span class="hljs-title function_">keys</span>());<br><br>  cache.<span class="hljs-title function_">dispose</span>();<br>&#125;<br><br><span class="hljs-title function_">demo</span>();<br></code></pre></td></tr></table></figure>
+
+<h3 id="8-4-运行与预期输出"><a href="#8-4-运行与预期输出" class="headerlink" title="8.4 运行与预期输出"></a>8.4 运行与预期输出</h3><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cd</span> scope-cache-demo<br>npm start<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br></pre></td><td class="code"><pre><code class="hljs kotlin">Keys after <span class="hljs-number">3</span> writes: [<br>  <span class="hljs-string">&#x27;tenant-A::workspace-1:file-1&#x27;</span>,<br>  <span class="hljs-string">&#x27;tenant-A::workspace-1:file-2&#x27;</span>,<br>  <span class="hljs-string">&#x27;tenant-A::workspace-1:file-3&#x27;</span><br>]<br>file-<span class="hljs-number">3</span> resource: &#123; url: <span class="hljs-string">&#x27;https://cdn/file-3.docx&#x27;</span>, expiresAt: ... &#125;<br>file-<span class="hljs-number">3</span> expired? <span class="hljs-literal">true</span>                    <span class="hljs-comment">// 因为 expiresAt - now = 10s &lt; skew 30s</span><br><br>-- 触发 LRU 淘汰：写入第 <span class="hljs-number">4</span> 条 --<br>Keys after 4th write: [<br>  <span class="hljs-string">&#x27;tenant-A::workspace-1:file-2&#x27;</span>,       <span class="hljs-comment">// file-1 是最老的，被淘汰</span><br>  <span class="hljs-string">&#x27;tenant-A::workspace-1:file-3&#x27;</span>,<br>  <span class="hljs-string">&#x27;tenant-A::workspace-1:file-4&#x27;</span><br>]<br><br>-- 切换工作空间：触发 onInvalidate --<br>Keys after workspace switch: []<br>cache.size = <span class="hljs-number">0</span><br><br>-- 新 scope 写入新数据 --<br>Keys: [ <span class="hljs-string">&#x27;tenant-A::workspace-2:file-1&#x27;</span> ]<br><br>-- 切回 workspace-<span class="hljs-number">1</span>，之前数据不复现（清空是不可逆的）--<br>Keys: []<br>&lt;p <span class="hljs-keyword">class</span>=<span class="hljs-string">&quot;code-caption&quot;</span> <span class="hljs-keyword">data</span>-lang=<span class="hljs-string">&quot;&quot;</span> <span class="hljs-keyword">data</span>-line_number=<span class="hljs-string">&quot;frontend&quot;</span> <span class="hljs-keyword">data</span>-trim_indent=<span class="hljs-string">&quot;backend&quot;</span> <span class="hljs-keyword">data</span>-label_position=<span class="hljs-string">&quot;outer&quot;</span> <span class="hljs-keyword">data</span>-labels_left=<span class="hljs-string">&quot;Code&quot;</span> <span class="hljs-keyword">data</span>-labels_right=<span class="hljs-string">&quot;:&quot;</span> <span class="hljs-keyword">data</span>-labels_copy=<span class="hljs-string">&quot;&quot;</span>&gt;&lt;span <span class="hljs-keyword">class</span>=<span class="hljs-string">&quot;code-caption-label&quot;</span>&gt;&lt;/span&gt;&lt;a <span class="hljs-keyword">class</span>=<span class="hljs-string">&quot;code-caption-copy&quot;</span>&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>三条关键观察：<br><br><span class="hljs-number">1.</span> **file-<span class="hljs-number">3</span> 已过期**，即使 expiresAt 还有 10s，因为 `skewMs=30s` 边界提前判定<br><span class="hljs-number">2.</span> **切换工作空间后 cache 清零**，不管 scope 还是不是同一个 tenant<br><span class="hljs-number">3.</span> **切回原工作空间不会<span class="hljs-string">&quot;恢复&quot;</span>数据**，这是正确的——缓存只是加速，不是持久化<br><br>### <span class="hljs-number">8.5</span> 测试文件 test.mjs<br><br>```javascript<br><span class="hljs-comment">// test.mjs</span><br><span class="hljs-comment">// 用 Node built-in 的 assert 验证核心不变式</span><br><span class="hljs-keyword">import</span> assert from <span class="hljs-string">&#x27;node:assert/strict&#x27;</span>;<br><span class="hljs-keyword">import</span> &#123; createScope, createCache, createResourceValidator &#125; from <span class="hljs-string">&#x27;./index.mjs&#x27;</span>;<br><br><span class="hljs-comment">// 1. LRU 淘汰顺序</span><br>&#123;<br>  <span class="hljs-keyword">const</span> scope = createScope(<span class="hljs-string">&#x27;t&#x27;</span>, <span class="hljs-string">&#x27;w&#x27;</span>);<br>  <span class="hljs-keyword">const</span> cache = createCache(scope, <span class="hljs-number">2</span>);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;a&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;a&#x27;</span> &#125;);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;b&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;b&#x27;</span> &#125;);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;c&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;c&#x27;</span> &#125;);              <span class="hljs-comment">// 淘汰 a</span><br>  assert.equal(cache.size, <span class="hljs-number">2</span>);<br>  assert.equal(cache.<span class="hljs-keyword">get</span>(<span class="hljs-string">&#x27;a&#x27;</span>), undefined);<br>  assert.deepEqual(cache.<span class="hljs-keyword">get</span>(<span class="hljs-string">&#x27;b&#x27;</span>)?.url, <span class="hljs-string">&#x27;b&#x27;</span>);<br>  console.log(<span class="hljs-string">&#x27;[PASS] LRU 淘汰最老项&#x27;</span>);<br>&#125;<br><br><span class="hljs-comment">// 2. get 后 LRU 顺序被刷新</span><br>&#123;<br>  <span class="hljs-keyword">const</span> scope = createScope(<span class="hljs-string">&#x27;t&#x27;</span>, <span class="hljs-string">&#x27;w&#x27;</span>);<br>  <span class="hljs-keyword">const</span> cache = createCache(scope, <span class="hljs-number">2</span>);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;a&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;a&#x27;</span> &#125;);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;b&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;b&#x27;</span> &#125;);<br>  cache.<span class="hljs-keyword">get</span>(<span class="hljs-string">&#x27;a&#x27;</span>);                            <span class="hljs-comment">// a 被刷新</span><br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;c&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;c&#x27;</span> &#125;);              <span class="hljs-comment">// 应该淘汰 b，不是 a</span><br>  assert.equal(cache.<span class="hljs-keyword">get</span>(<span class="hljs-string">&#x27;b&#x27;</span>), undefined);<br>  assert.equal(cache.<span class="hljs-keyword">get</span>(<span class="hljs-string">&#x27;a&#x27;</span>)?.url, <span class="hljs-string">&#x27;a&#x27;</span>);<br>  console.log(<span class="hljs-string">&#x27;[PASS] get 刷新 LRU 顺序&#x27;</span>);<br>&#125;<br><br><span class="hljs-comment">// 3. scope 切换触发 invalidate</span><br>&#123;<br>  <span class="hljs-keyword">const</span> scope = createScope(<span class="hljs-string">&#x27;t&#x27;</span>, <span class="hljs-string">&#x27;w1&#x27;</span>);<br>  <span class="hljs-keyword">const</span> cache = createCache(scope, <span class="hljs-number">10</span>);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;a&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;a&#x27;</span> &#125;);<br>  scope.setWorkspace(<span class="hljs-string">&#x27;w2&#x27;</span>);<br>  assert.equal(cache.size, <span class="hljs-number">0</span>);<br>  console.log(<span class="hljs-string">&#x27;[PASS] scope 切换清空 cache&#x27;</span>);<br>&#125;<br><br><span class="hljs-comment">// 4. 过期判定（expiresAt + skewMs）</span><br>&#123;<br>  <span class="hljs-keyword">const</span> v = createResourceValidator(<span class="hljs-number">30_000</span>);<br>  <span class="hljs-keyword">const</span> now = Date.now();<br>  assert.equal(v.isExpired(&#123; url: <span class="hljs-string">&#x27;x&#x27;</span>, expiresAt: now + <span class="hljs-number">60_000</span> &#125;), <span class="hljs-literal">false</span>);<br>  assert.equal(v.isExpired(&#123; url: <span class="hljs-string">&#x27;x&#x27;</span>, expiresAt: now + <span class="hljs-number">10_000</span> &#125;), <span class="hljs-literal">true</span>);<br>  assert.equal(v.isExpired(&#123; url: <span class="hljs-string">&#x27;x&#x27;</span> <span class="hljs-comment">/* no expiresAt */</span> &#125;), <span class="hljs-literal">false</span>);<br>  console.log(<span class="hljs-string">&#x27;[PASS] expiresAt 过期判定&#x27;</span>);<br>&#125;<br><br><span class="hljs-comment">// 5. dispose 后 scope 广播不再影响</span><br>&#123;<br>  <span class="hljs-keyword">const</span> scope = createScope(<span class="hljs-string">&#x27;t&#x27;</span>, <span class="hljs-string">&#x27;w&#x27;</span>);<br>  <span class="hljs-keyword">const</span> cache = createCache(scope, <span class="hljs-number">10</span>);<br>  cache.<span class="hljs-keyword">set</span>(<span class="hljs-string">&#x27;a&#x27;</span>, &#123; url: <span class="hljs-string">&#x27;a&#x27;</span> &#125;);<br>  cache.dispose();<br>  scope.setWorkspace(<span class="hljs-string">&#x27;w2&#x27;</span>);                   <span class="hljs-comment">// 不应抛错</span><br>  assert.equal(cache.size, <span class="hljs-number">0</span>);<br>  console.log(<span class="hljs-string">&#x27;[PASS] dispose 取消订阅&#x27;</span>);<br>&#125;<br><br>console.log(<span class="hljs-string">&#x27;\nAll tests passed.&#x27;</span>);<br></code></pre></td></tr></table></figure>
+
+<p>运行：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">npm <span class="hljs-built_in">test</span><br></code></pre></td></tr></table></figure>
+
+<p>预期：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs csharp">[<span class="hljs-meta">PASS</span>] LRU 淘汰最老项<br>[<span class="hljs-meta">PASS</span>] <span class="hljs-keyword">get</span> 刷新 LRU 顺序<br>[<span class="hljs-meta">PASS</span>] scope 切换清空 cache<br>[<span class="hljs-meta">PASS</span>] expiresAt 过期判定<br>[<span class="hljs-meta">PASS</span>] dispose 取消订阅<br><br>All tests passed.<br></code></pre></td></tr></table></figure>
+
+<h2 id="九、踩坑与故障排查"><a href="#九、踩坑与故障排查" class="headerlink" title="九、踩坑与故障排查"></a>九、踩坑与故障排查</h2><h3 id="9-1-用户切换工作空间后仍看到旧内容"><a href="#9-1-用户切换工作空间后仍看到旧内容" class="headerlink" title="9.1 用户切换工作空间后仍看到旧内容"></a>9.1 用户切换工作空间后仍看到旧内容</h3><p><strong>症状</strong>：切 workspace 后点预览，内容还是原来的。</p>
+<p><strong>可能原因</strong>：</p>
+<ol>
+<li>scope.onInvalidate 没订阅到事件源（checkbox：<code>watch</code> 的 source 是不是 reactive？store 的值是不是 ref？）</li>
+<li>scope.getKey 返回值没变（checkbox：是否 fallback 到空串掩盖了差异？）</li>
+<li>cache 被挂在 window &#x2F; 全局模块级变量，不归 Host 管（checkbox：cache 是不是每次 Host mount 时新建？）</li>
+</ol>
+<p><strong>排查命令</strong>：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-comment">// 临时加日志</span><br><span class="hljs-title function_">watch</span>(<span class="hljs-function">() =&gt;</span> userStore.<span class="hljs-property">tenantId</span>, <span class="hljs-function">(<span class="hljs-params">next, prev</span>) =&gt;</span> &#123;<br>  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;[scope] tenantId&#x27;</span>, prev, <span class="hljs-string">&#x27;→&#x27;</span>, next);<br>  <span class="hljs-title function_">invalidate</span>();<br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-2-用户频繁切文件导致请求雪崩"><a href="#9-2-用户频繁切文件导致请求雪崩" class="headerlink" title="9.2 用户频繁切文件导致请求雪崩"></a>9.2 用户频繁切文件导致请求雪崩</h3><p><strong>症状</strong>：连续快点 10 个文件，Network 面板看到 10 个 pending 请求。</p>
+<p><strong>原因</strong>：没有用 <code>AbortGroup.spawn()</code> 的独占语义。每次 <code>open()</code> 应该 abort 掉上一次的 controller。</p>
+<p><strong>修复</strong>：参考第七章 <code>createAbortGroup</code>。</p>
+<h3 id="9-3-Dev-环境控制台红字-“Cannot-set-reactive-property-on-undefined…”"><a href="#9-3-Dev-环境控制台红字-“Cannot-set-reactive-property-on-undefined…”" class="headerlink" title="9.3 Dev 环境控制台红字 “Cannot set reactive property on undefined…”"></a>9.3 Dev 环境控制台红字 “Cannot set reactive property on undefined…”</h3><p><strong>症状</strong>：关闭弹窗后，后台仍有请求返回并试图更新 state。</p>
+<p><strong>原因</strong>：fetch 的 <code>.then</code> 回调没检查 <code>signal.aborted</code> 就 setState。</p>
+<p><strong>修复</strong>：</p>
+<p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">try</span> &#123;<br>  <span class="hljs-keyword">const</span> resource = <span class="hljs-keyword">await</span> <span class="hljs-title function_">fetchResource</span>(file, signal, dataSource);<br>  <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;           <span class="hljs-comment">// ← 必须</span><br>  <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;rendering&#x27;</span>, ... &#125;);<br>&#125; <span class="hljs-keyword">catch</span> (err) &#123;<br>  <span class="hljs-keyword">if</span> (signal.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">return</span>;           <span class="hljs-comment">// ← 必须</span><br>  <span class="hljs-title function_">setState</span>(&#123; <span class="hljs-attr">kind</span>: <span class="hljs-string">&#x27;error&#x27;</span>, ... &#125;);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-4-expiresAt-字段后端没下发"><a href="#9-4-expiresAt-字段后端没下发" class="headerlink" title="9.4 expiresAt 字段后端没下发"></a>9.4 <code>expiresAt</code> 字段后端没下发</h3><p><strong>症状</strong>：过期检测形同虚设。</p>
+<p><strong>原因</strong>：<code>isExpired</code> 在 <code>expiresAt === undefined</code> 时直接返回 false。</p>
+<p><strong>根治</strong>：</p>
+<ul>
+<li>后端推动补字段</li>
+<li>前端侧 fallback：对某些已知短寿命资源在 <code>dataSource.resolve</code> 内部手动打上 <code>expiresAt = Date.now() + 5*60_000</code></li>
+<li>注意：这个 fallback 只是”再退一步”，仍然不如后端下发权威</li>
+</ul>
+<h3 id="9-5-生产环境偶现命中”跨租户”缓存"><a href="#9-5-生产环境偶现命中”跨租户”缓存" class="headerlink" title="9.5 生产环境偶现命中”跨租户”缓存"></a>9.5 生产环境偶现命中”跨租户”缓存</h3><p><strong>症状</strong>：概率极低但确实发生。</p>
+<p><strong>原因</strong>：<code>scope.getKey()</code> 在<strong>读写时</strong>求值，但 listener 里已经把 store 清空了。如果 getKey 所依赖的 store 变更和 invalidate 触发之间存在微观窗口（极少见），可能写入 A、读取 B。</p>
+<p><strong>修复</strong>：</p>
+<ul>
+<li>把 scope key 冻结到 entry 内：<code>store.set(key, &#123; resource, scopeKey: scope.getKey() &#125;)</code></li>
+<li>读取时再 check 一遍：<code>if (entry.scopeKey !== scope.getKey()) return undefined</code></li>
+</ul>
+<p>这是”三重保险”里的第三重。生产实践里前两重已足够，第三重为过度设计（除非真的观察到问题）。</p>
+<h2 id="十、TTL-vs-expiresAt：完整对照表"><a href="#十、TTL-vs-expiresAt：完整对照表" class="headerlink" title="十、TTL vs expiresAt：完整对照表"></a>十、TTL vs expiresAt：完整对照表</h2><table>
+<thead>
+<tr>
+<th>对比维度</th>
+<th>TTL</th>
+<th>expiresAt</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>过期基准</td>
+<td>前端本地时钟 <code>Date.now() - createdAt</code></td>
+<td>后端权威时间戳 <code>expiresAt - Date.now()</code></td>
+</tr>
+<tr>
+<td>写入方</td>
+<td>前端猜一个值（如 5 分钟）</td>
+<td>后端签发时写入</td>
+</tr>
+<tr>
+<td>不同资源差异化</td>
+<td>难（需区分 key 用不同 TTL）</td>
+<td>天然支持（每个资源带自己的 expiresAt）</td>
+</tr>
+<tr>
+<td>时钟漂移代价</td>
+<td>拿到错误的 URL（严重）</td>
+<td>多一次网络请求（可接受）</td>
+</tr>
+<tr>
+<td>系统休眠</td>
+<td>醒来立即全部”过期”，雪崩重取</td>
+<td>仍按 expiresAt 判断，分批重取</td>
+</tr>
+<tr>
+<td>多子应用一致性</td>
+<td>各子应用自行 TTL，可能不一致</td>
+<td>同一 expiresAt，所有消费者一致</td>
+</tr>
+<tr>
+<td>抵御时钟攻击</td>
+<td>用户改系统时间可让缓存永不过期</td>
+<td>仍可被改，但 skew 边界保护了关键路径</td>
+</tr>
+<tr>
+<td>与身份维度解耦</td>
+<td>仅时间维度，身份靠 key 拼</td>
+<td>同样靠 scope + key 拼，但配合 onInvalidate 能主动广播</td>
+</tr>
+<tr>
+<td>实现复杂度</td>
+<td>低</td>
+<td>略高（多了 validator + skew）</td>
+</tr>
+<tr>
+<td>后端负担</td>
+<td>无</td>
+<td>要求后端下发时间戳</td>
+</tr>
+</tbody></table>
+<p><strong>结论</strong>：TTL 在 <strong>单 SPA + 无签名 URL + 不跨身份</strong> 的场景仍然合适。一旦引入微前端、多租户、签名 URL 任意一个，就应该切到 expiresAt + skew + onInvalidate 方案。</p>
+<h2 id="十一、最佳实践"><a href="#十一、最佳实践" class="headerlink" title="十一、最佳实践"></a>十一、最佳实践</h2><h3 id="11-1-缓存层设计-Checklist"><a href="#11-1-缓存层设计-Checklist" class="headerlink" title="11.1 缓存层设计 Checklist"></a>11.1 缓存层设计 Checklist</h3><ol>
+<li><strong>Key 必须包含身份维度</strong>：<code>scope.key + resourceId</code>，不要只用 resourceId</li>
+<li><strong>过期判定用后端时间戳</strong>：<code>expiresAt</code> 而非前端 <code>ttl</code></li>
+<li><strong>加时钟抖动边界</strong>：<code>skewMs ≥ 10s</code>，保护临界态</li>
+<li><strong>主动失效广播</strong>：<code>scope.onInvalidate</code> + <code>AUTH_EVENTS.LOGOUT</code></li>
+<li><strong>被动 key 防护</strong>：读写时现场求值 <code>scope.getKey()</code>，不 cache 住</li>
+<li><strong>过期项主动删除</strong>：不要等下次访问，见到过期就 delete</li>
+<li><strong>生命周期绑定 dispose</strong>：Host <code>onBeforeUnmount</code> 调用，取消订阅</li>
+<li><strong>LRU 用原生 Map</strong>：O(1) 命中、touch、淘汰，无需双向链表</li>
+<li><strong>AbortController 独占语义</strong>：每次 open 自动 abort 上一次</li>
+<li><strong>abort 分支 early return</strong>：不写 state，不污染</li>
+</ol>
+<h3 id="11-2-代码结构建议"><a href="#11-2-代码结构建议" class="headerlink" title="11.2 代码结构建议"></a>11.2 代码结构建议</h3><p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs stylus">preview-cache/<br>├── types<span class="hljs-selector-class">.ts</span>               契约：PreviewResource / PreviewScope<br>├── cache<span class="hljs-selector-class">.ts</span>               LRU + scope<span class="hljs-selector-class">.onInvalidate</span><br>├── resource-validator<span class="hljs-selector-class">.ts</span>  expiresAt + skewMs<br>├── abort-group<span class="hljs-selector-class">.ts</span>         独占 AbortController 池<br>└── controller<span class="hljs-selector-class">.ts</span>          编排：cache × validator × abort × dataSource<br></code></pre></td></tr></table></figure>
+
+<p><strong>单一职责</strong>，每个文件 &lt; 100 行。Controller 是唯一”知道所有基建”的地方，其他文件互相不依赖。</p>
+<h3 id="11-3-何时不要用这个方案"><a href="#11-3-何时不要用这个方案" class="headerlink" title="11.3 何时不要用这个方案"></a>11.3 何时不要用这个方案</h3><ul>
+<li><strong>完全离线的单 SPA</strong>：TTL 足矣</li>
+<li><strong>资源本身永不变</strong>（如静态 CDN）：根本不需要过期判定，浏览器 HTTP 缓存就够</li>
+<li><strong>小数据 + 强一致</strong>（如用户资料）：用 SWR &#x2F; react-query 的 stale-while-revalidate 模式，每次都 revalidate</li>
+</ul>
+<h2 id="十二、附录"><a href="#十二、附录" class="headerlink" title="十二、附录"></a>十二、附录</h2><h3 id="12-1-完整类型契约"><a href="#12-1-完整类型契约" class="headerlink" title="12.1 完整类型契约"></a>12.1 完整类型契约</h3><p class="code-caption" data-lang="typescript" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><code class="hljs typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewResource</span> &#123;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">mimeType</span>?: <span class="hljs-built_in">string</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">expiresAt</span>?: <span class="hljs-built_in">number</span>;     <span class="hljs-comment">// ms since epoch</span><br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">encoding</span>?: <span class="hljs-string">&#x27;utf-8&#x27;</span> | <span class="hljs-string">&#x27;gbk&#x27;</span> | <span class="hljs-string">&#x27;auto&#x27;</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">meta</span>?: <span class="hljs-title class_">Readonly</span>&lt;<span class="hljs-title class_">Record</span>&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">unknown</span>&gt;&gt;;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewScope</span> &#123;<br>  <span class="hljs-title function_">getKey</span>(): <span class="hljs-built_in">string</span>;<br>  <span class="hljs-title function_">onInvalidate</span>(<span class="hljs-attr">cb</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>): <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">void</span>;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PreviewCache</span> &#123;<br>  <span class="hljs-title function_">get</span>(<span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">PreviewResource</span> | <span class="hljs-literal">undefined</span>;<br>  <span class="hljs-title function_">set</span>(<span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span>): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">delete</span>(<span class="hljs-attr">fileId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">clear</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-title function_">dispose</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">size</span>: <span class="hljs-built_in">number</span>;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">ResourceValidator</span> &#123;<br>  <span class="hljs-title function_">isExpired</span>(<span class="hljs-attr">resource</span>: <span class="hljs-title class_">PreviewResource</span>): <span class="hljs-built_in">boolean</span>;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">ResourceValidatorOptions</span> &#123;<br>  <span class="hljs-attr">skewMs</span>?: <span class="hljs-built_in">number</span>;<br>&#125;<br><br><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">AbortGroup</span> &#123;<br>  <span class="hljs-title function_">spawn</span>(): <span class="hljs-title class_">AbortController</span>;<br>  <span class="hljs-title function_">abort</span>(): <span class="hljs-built_in">void</span>;<br>  <span class="hljs-keyword">readonly</span> <span class="hljs-attr">isAborted</span>: <span class="hljs-built_in">boolean</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="12-2-默认配置建议值"><a href="#12-2-默认配置建议值" class="headerlink" title="12.2 默认配置建议值"></a>12.2 默认配置建议值</h3><table>
+<thead>
+<tr>
+<th>参数</th>
+<th>默认</th>
+<th>建议区间</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PreviewCacheOptions.limit</code></td>
+<td>20</td>
+<td>10~50</td>
+<td>预览资源较小，不宜过大</td>
+</tr>
+<tr>
+<td><code>ResourceValidatorOptions.skewMs</code></td>
+<td>30_000</td>
+<td>10_000~60_000</td>
+<td>过小贴近临界，过大浪费可用窗口</td>
+</tr>
+</tbody></table>
+<h3 id="12-3-相关源码地址（-co-file-preview）"><a href="#12-3-相关源码地址（-co-file-preview）" class="headerlink" title="12.3 相关源码地址（@co&#x2F;file-preview）"></a>12.3 相关源码地址（@co&#x2F;file-preview）</h3><ul>
+<li><code>packages/file-preview/src/types.ts</code></li>
+<li><code>packages/file-preview/src/infra/cache.ts</code></li>
+<li><code>packages/file-preview/src/infra/resource-validator.ts</code></li>
+<li><code>packages/file-preview/src/infra/abort-group.ts</code></li>
+<li><code>packages/file-preview/src/controller/controller.ts</code></li>
+</ul>
+<h3 id="12-4-延伸阅读"><a href="#12-4-延伸阅读" class="headerlink" title="12.4 延伸阅读"></a>12.4 延伸阅读</h3><ul>
+<li>RFC 7234 HTTP Caching（HTTP 层的 Cache-Control &#x2F; Expires 语义参考）</li>
+<li>AWS S3 Presigned URL 文档（签名 URL 过期策略的典型案例）</li>
+<li>Vue 3 provide&#x2F;inject 文档（理解为何不能跨 micro-app）</li>
+<li>SWR &#x2F; TanStack Query（对照：stale-while-revalidate 是另一种缓存哲学）</li>
+</ul>
+<hr>
+<p><strong>一句话带走</strong>：在微前端 + 签名 URL 场景下，缓存的<strong>身份维度</strong>靠 scope 解决，<strong>时间维度</strong>靠后端 expiresAt + skew 解决，<strong>生命周期维度</strong>靠 AbortGroup + dispose 解决。三者缺一不可，但实现加起来不到 200 行。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/%E5%BE%AE%E5%89%8D%E7%AB%AF%E6%9E%B6%E6%9E%84/" class="category-chain-item">微前端架构</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/vue3/" class="print-no-link">#vue3</a>
+      
+        <a href="../../../../../tags/micro-frontend/" class="print-no-link">#micro-frontend</a>
+      
+        <a href="../../../../../tags/architecture/" class="print-no-link">#architecture</a>
+      
+        <a href="../../../../../tags/cache/" class="print-no-link">#cache</a>
+      
+        <a href="../../../../../tags/LRU/" class="print-no-link">#LRU</a>
+      
+        <a href="../../../../../tags/AbortController/" class="print-no-link">#AbortController</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>微前端场景下的文件预览缓存设计：为什么我们抛弃了 TTL</div>
+      <div>http://example.com/2026/04/19/micro-web/preview-cache-ttl-vs-expiresat/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年4月19日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="../file-preview-architecture-design/" title="微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">微前端文件预览组件的架构设计：从 9 宗设计债到可插拔预览平台</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../16/micro-web/micro-frontend-bridge-design/" title="微前端状态共享：基于 Proxy 的 Bridge 设计与实现">
+                        <span class="hidden-mobile">微前端状态共享：基于 Proxy 的 Bridge 设计与实现</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
