@@ -1,0 +1,1495 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="仿真模型的结构通常由物理定律确定，而模型中的刚度、阻尼、摩擦系数、换热系数等参数往往无法直接测量，或者手册给出的数值与实物存在偏差。参数标定（parameter calibration）要解决的问题是：给定模型和若干次试验的实测曲线，反求一组参数，使模型在相同输入下的仿真输出与实测曲线尽可能一致。 标定在数学上是一个带边界约束的非线性最小化问题，但工程实现的难点并不在优化公式本身，而在于周边的一系">
+<meta property="og:type" content="article">
+<meta property="og:title" content="仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估">
+<meta property="og:url" content="http://example.com/2026/11/16/fmi/model-parameter-calibration-de/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="仿真模型的结构通常由物理定律确定，而模型中的刚度、阻尼、摩擦系数、换热系数等参数往往无法直接测量，或者手册给出的数值与实物存在偏差。参数标定（parameter calibration）要解决的问题是：给定模型和若干次试验的实测曲线，反求一组参数，使模型在相同输入下的仿真输出与实测曲线尽可能一致。 标定在数学上是一个带边界约束的非线性最小化问题，但工程实现的难点并不在优化公式本身，而在于周边的一系">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-11-16T06:34:50.000Z">
+<meta property="article:modified_time" content="2026-11-16T06:59:08.595Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="仿真">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="参数标定">
+<meta property="article:tag" content="差分进化">
+<meta property="article:tag" content="优化算法">
+<meta property="article:tag" content="数值计算">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估 - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-11-16 14:34" pubdate>
+          2026年11月16日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          14k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          116 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <p>仿真模型的结构通常由物理定律确定，而模型中的刚度、阻尼、摩擦系数、换热系数等参数往往无法直接测量，或者手册给出的数值与实物存在偏差。参数标定（parameter calibration）要解决的问题是：给定模型和若干次试验的实测曲线，反求一组参数，使模型在相同输入下的仿真输出与实测曲线尽可能一致。</p>
+<p>标定在数学上是一个带边界约束的非线性最小化问题，但工程实现的难点并不在优化公式本身，而在于周边的一系列决策：误差如何定义才能跨工况、跨物理量比较；仿真失败如何处理；数千次仿真如何并行且不影响结果；何时可以判定收敛；同一配置重复运行能否得到逐位一致的结果。这些决策任何一处处理不当，都会导致标定结果不可信或不可复现。</p>
+<p>本文以差分进化（Differential Evolution, DE）为优化算法，系统阐述一个参数标定内核的完整设计：问题建模、目标函数、仿真接口、算法细节、批量并行评估、终止判定与可复现性保证。最后给出一个可独立运行的演示项目：以带立方刚度的质量-弹簧-阻尼系统为被标定对象，使用合成数据完成两工况、三参数的标定，并通过对照实验验证文中的各项结论。</p>
+<span id="more"></span>
+
+<h2 id="一、问题定义"><a href="#一、问题定义" class="headerlink" title="一、问题定义"></a>一、问题定义</h2><h3 id="1-1-术语"><a href="#1-1-术语" class="headerlink" title="1.1 术语"></a>1.1 术语</h3><p>标定涉及的概念较多，先统一术语。</p>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>英文</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>待标定参数</td>
+<td>calibration parameter</td>
+<td>需要反求的模型参数 <code>θ_j</code>，每个参数给出初值和上下界 <code>[l_j, u_j]</code></td>
+</tr>
+<tr>
+<td>工况</td>
+<td>condition</td>
+<td>一次试验：一组激励条件、一个实测文件、对应一次仿真</td>
+</tr>
+<tr>
+<td>实测数据</td>
+<td>measured data</td>
+<td>试验采集的时间序列，含时间列和若干信号列</td>
+</tr>
+<tr>
+<td>配对</td>
+<td>pair</td>
+<td>一个模型输出与一个实测列的对应关系，带缩放、偏移、权重和容差</td>
+</tr>
+<tr>
+<td>目标值</td>
+<td>target</td>
+<td>实测值经单位换算和零点修正后的序列：实测 × scale + offset</td>
+</tr>
+<tr>
+<td>比较窗口</td>
+<td>comparison window</td>
+<td>参与误差计算的时间区间 <code>[t_s, t_e]</code></td>
+</tr>
+<tr>
+<td>容差</td>
+<td>tolerance</td>
+<td>配对 RMSE 的上限，只用于判定是否达标，不参与优化</td>
+</tr>
+<tr>
+<td>总误差</td>
+<td>total cost</td>
+<td>优化算法最小化的标量目标 <code>J(θ)</code></td>
+</tr>
+</tbody></table>
+<p>工况之间共享同一组待标定参数。一个工况可以包含多个配对，例如同一次试验同时测量位移和速度。</p>
+<h3 id="1-2-数学形式"><a href="#1-2-数学形式" class="headerlink" title="1.2 数学形式"></a>1.2 数学形式</h3><p>记待标定参数向量为 <code>θ ∈ R^d</code>，标定问题表述为：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">θ* = argmin J(θ)<br>      θ<br><br>约束：l_j ≤ θ_j ≤ u_j，j = 1, …, d<br></code></pre></td></tr></table></figure>
+
+<p><code>J(θ)</code> 的每一次求值都需要在全部工况上各运行一次仿真。这一事实决定了算法选型的基本约束：</p>
+<ol>
+<li><strong>目标函数是黑箱</strong>。仿真器通常以 FMU 或可执行程序的形式提供，无法获得解析梯度；数值差分的代价是每个参数额外一次仿真，且仿真器的积分误差会使差分梯度失真。</li>
+<li><strong>单次求值代价高</strong>。一次仿真耗时从毫秒到分钟不等，整个标定的计算预算以「仿真次数」计量。</li>
+<li><strong>可能存在多个局部极小</strong>。非线性模型在宽参数范围内的误差曲面通常不是凸的。</li>
+<li><strong>部分参数组合无法仿真</strong>。参数越过物理可行域时，积分器可能发散或报错。</li>
+</ol>
+<p>上述四点共同指向一类方法：无梯度、全局搜索、天然支持批量并行、能容忍求值失败。差分进化满足全部条件，这是本文选用它的原因，第五节给出与其他方法的对比。</p>
+<h2 id="二、系统组成与数据流"><a href="#二、系统组成与数据流" class="headerlink" title="二、系统组成与数据流"></a>二、系统组成与数据流</h2><p>标定内核由四个部分组成：任务配置、目标函数、评估器、优化算法。它们之间的数据流如下：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs text">task.json ---&gt; build_scenarios() ---&gt; Scenario[]<br>                                          |<br>                                          v<br>+------------+   X (n x d)    +---------------------+       +------------+<br>| DE.ask()   | -------------&gt; | Evaluator           | &lt;---&gt; | simulate() |<br>+------------+                | n x m jobs          |       +------------+<br>      ^                       +---------------------+<br>      |                                  |<br>      | continue                         | J (n)<br>      |                                  v<br>+------------+                +---------------------+<br>| stop?      | &lt;------------- | DE.tell()           |<br>+------------+                +---------------------+<br>      |<br>      | maxEpoch / earlyStop / timeout<br>      v<br>finalize()<br></code></pre></td></tr></table></figure>
+
+<p>图中各节点的含义：</p>
+<ul>
+<li><code>build_scenarios()</code>：读取实测数据，按 scale、offset 计算目标值，截取比较窗口，得到每个工况的 <code>Scenario</code>。</li>
+<li><code>DE.ask()</code>：基于本代种群生成 <code>n</code> 个试验个体，组成 <code>n × d</code> 的候选矩阵。</li>
+<li><code>Evaluator</code>：把候选矩阵拆成「候选 × 工况」共 <code>n × m</code> 个作业，分发给 worker 并行调用仿真器，汇总为每个候选的总误差。</li>
+<li><code>DE.tell()</code>：试验个体与父代逐个比较，执行贪婪选择。</li>
+<li><code>stop?</code>：终止判定，满足最大代数、早停或超时之一即进入收尾。</li>
+<li><code>finalize()</code>：达标判定、接近边界告警、生成复现指纹。</li>
+</ul>
+<p>一次标定的生命周期分为五个阶段：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>工作内容</th>
+<th>仿真次数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>prepare</td>
+<td>读取配置与实测数据，构造工况，启动 worker</td>
+<td>0</td>
+</tr>
+<tr>
+<td>initial</td>
+<td>在初值处评估一次，失败则整个任务失败</td>
+<td><code>m</code></td>
+</tr>
+<tr>
+<td>presearch</td>
+<td>用 Sobol 序列在参数空间撒点，选出初始种群</td>
+<td><code>S·m</code></td>
+</tr>
+<tr>
+<td>evolve</td>
+<td>差分进化逐代迭代，直到满足终止条件</td>
+<td><code>G·n·m</code></td>
+</tr>
+<tr>
+<td>finalize</td>
+<td>组装结果，判定达标与接近边界，不再大规模仿真</td>
+<td><code>m</code></td>
+</tr>
+</tbody></table>
+<p>其中 <code>m</code> 为工况数，<code>S</code> 为预搜索采样点数，<code>n</code> 为种群规模，<code>G</code> 为实际迭代代数。</p>
+<p>分层上有一条原则：<strong>计算内核不依赖任何基础设施</strong>。内核只依赖数值库，通过回调函数向外报告进度和结果；消息队列、任务调度、文件下载等属于外层适配。这样内核可以离线单测，也可以在本地命令行和服务端两种入口之间复用同一套逻辑。</p>
+<h2 id="三、目标函数的设计"><a href="#三、目标函数的设计" class="headerlink" title="三、目标函数的设计"></a>三、目标函数的设计</h2><p>目标函数是标定的核心契约。优化算法只看到一个标量 <code>J</code>，因此 <code>J</code> 的定义直接决定标定结果的含义。</p>
+<h3 id="3-1-单位换算与零点修正"><a href="#3-1-单位换算与零点修正" class="headerlink" title="3.1 单位换算与零点修正"></a>3.1 单位换算与零点修正</h3><p>实测数据的单位和零点经常与模型输出不一致：位移传感器以 mm 输出而模型以 m 计算，或者传感器存在零点漂移。配对中的 scale 和 offset 用于把实测值换算到模型输出的量纲：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">y_target,k = s · y_meas,k + b<br></code></pre></td></tr></table></figure>
+
+<p>换算发生在构造工况时，只计算一次。这一设计把「数据预处理」限制在线性换算范围内，复杂的滤波、重采样不进入标定内核。</p>
+<h3 id="3-2-配对误差：RMSE"><a href="#3-2-配对误差：RMSE" class="headerlink" title="3.2 配对误差：RMSE"></a>3.2 配对误差：RMSE</h3><p>对每个配对，在比较窗口内的全部实测时刻上计算均方根误差：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">RMSE = sqrt( (1/N) · Σ_k ( y_sim(t_k) − y_target,k )² )<br></code></pre></td></tr></table></figure>
+
+<p><code>N</code> 为比较窗口内的实测点数。RMSE 与信号同量纲，便于设定容差（例如位移 RMSE 不超过 0.5 mm）。</p>
+<h3 id="3-3-工况误差与总误差"><a href="#3-3-工况误差与总误差" class="headerlink" title="3.3 工况误差与总误差"></a>3.3 工况误差与总误差</h3><p>一个工况内的多个配对按权重合成：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">E_c = Σ_i ( w_i · RMSE_i² ) / Σ_i w_i<br></code></pre></td></tr></table></figure>
+
+<p>全部工况的误差取算术平均作为总误差：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">J = (1/M) · Σ_c E_c<br></code></pre></td></tr></table></figure>
+
+<p>这一定义包含三个有意的选择：</p>
+<ol>
+<li><strong>合成时使用 RMSE² 而非 RMSE</strong>。RMSE² 即均方误差，与最小二乘一致，误差曲面在极小点附近光滑；直接对 RMSE 加权，在 RMSE 接近零时梯度方向会发生突变。</li>
+<li><strong>权重归一化</strong>。除以 <code>Σ w_i</code> 后，所有权重同乘一个常数不改变 <code>E_c</code>，用户只需关注相对权重。</li>
+<li><strong>工况取平均而非求和</strong>。每个工况内部已按点数取均值，工况之间再取平均，使得每个工况对 <code>J</code> 的贡献与采样点数无关。一次 10 s 的试验与一次 100 s 的试验具有相同的话语权，避免长试验淹没短试验。</li>
+</ol>
+<h3 id="3-4-容差不参与优化"><a href="#3-4-容差不参与优化" class="headerlink" title="3.4 容差不参与优化"></a>3.4 容差不参与优化</h3><p>容差只用于收尾时的达标判定：配对 RMSE ≤ 容差即达标；工况内所有带容差的配对都达标，该工况才达标；工况内一个带容差的配对都没有时，判定结果为「未判定」而非「达标」。</p>
+<p>容差不进入目标函数，原因在于：如果把容差写成惩罚项（例如 <code>max(0, RMSE − τ)</code>），一旦所有配对进入容差范围，目标函数就变为常数零，优化失去方向，最终参数取决于搜索的偶然路径，结果不可解释。</p>
+<h3 id="3-5-时间对齐：在实测时刻上直接输出"><a href="#3-5-时间对齐：在实测时刻上直接输出" class="headerlink" title="3.5 时间对齐：在实测时刻上直接输出"></a>3.5 时间对齐：在实测时刻上直接输出</h3><p>仿真时间网格与实测时间网格一般不一致。常见做法是先按固定步长仿真，再把仿真结果插值到实测时刻。插值会引入与参数无关的额外误差，并且使误差对参数的依赖出现锯齿。</p>
+<p>更好的做法是让仿真器直接在实测时刻上输出。对于 ODE 求解器，<code>solve_ivp</code> 的 <code>t_eval</code> 参数利用稠密输出在指定时刻求值；对于协同仿真（co-simulation）的 FMU，可以把通信点集合取为「等距网格 ∪ 终止时刻 ∪ 比较窗口内的实测时刻」，对几乎重合的点去重，使每个实测时刻恰好是一个通信点。两种方式下，读取到的都是该时刻的状态值，无需插值。</p>
+<h2 id="四、仿真接口的抽象"><a href="#四、仿真接口的抽象" class="headerlink" title="四、仿真接口的抽象"></a>四、仿真接口的抽象</h2><p>评估器通过一个极简接口调用仿真器：</p>
+<p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">simulate</span>(<span class="hljs-params">params: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">float</span>], condition: <span class="hljs-built_in">dict</span>, sample_times: np.ndarray</span>):<br>    <span class="hljs-string">&quot;&quot;&quot;成功返回 (True, &#123;输出名: 数组&#125;, None)，失败返回 (False, None, 原因)。&quot;&quot;&quot;</span><br></code></pre></td></tr></table></figure>
+
+<p>这个接口有两条约束。</p>
+<p><strong>第一，不抛出异常。</strong> 仿真失败是标定过程中的正常事件而非程序错误：DE 在探索阶段必然会生成物理上不合理的参数组合。如果仿真器以异常表达失败，评估器就需要在多进程边界上捕获、序列化、还原异常，复杂且容易遗漏。以返回值表达失败，失败原因作为数据传递，评估器只需检查一个布尔值。</p>
+<p><strong>第二，失败映射为 <code>J = +∞</code>。</strong> 一组参数在任一工况上仿真失败，该组参数即作废，总误差记为正无穷。DE 的贪婪选择保证无穷大的个体永远不会进入种群，因此失败的参数组合会被自然淘汰，不需要额外的约束处理逻辑。需要注意的是，数值发散有时不会使求解器报错，而是产生 NaN；NaN 参与比较时任何比较都返回 False，会破坏选择逻辑，因此 NaN 同样要映射为 <code>+∞</code>。</p>
+<p><strong>初值是例外。</strong> 初值处的仿真失败意味着模型或配置本身存在问题（参数名错误、激励缺失、初值越界），继续搜索没有意义。因此 initial 阶段一旦失败，整个任务立即以失败终止，并指明失败的工况。</p>
+<p>接入 FMU 时，接口实现的要点是：参数在初始化之前设置（FMI 2.0 中参数在 <code>fmi2EnterInitializationMode</code> 之前写入）；每个 worker 进程只加载一次 FMU 动态库并在多次仿真之间复用实例；仿真结束后只返回采样时刻上的输出，不返回完整轨迹，以降低进程间通信量。</p>
+<h2 id="五、为什么选择差分进化"><a href="#五、为什么选择差分进化" class="headerlink" title="五、为什么选择差分进化"></a>五、为什么选择差分进化</h2><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>是否需要梯度</th>
+<th>全局性</th>
+<th>批量并行</th>
+<th>容忍求值失败</th>
+<th>主要局限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Levenberg–Marquardt &#x2F; TRF</td>
+<td>需要（数值差分）</td>
+<td>局部</td>
+<td>差分可并行</td>
+<td>差</td>
+<td>依赖初值，差分梯度受积分误差影响</td>
+</tr>
+<tr>
+<td>Nelder–Mead</td>
+<td>不需要</td>
+<td>局部</td>
+<td>不支持</td>
+<td>一般</td>
+<td>高维收敛慢，本质串行</td>
+</tr>
+<tr>
+<td>粒子群（PSO）</td>
+<td>不需要</td>
+<td>全局</td>
+<td>支持</td>
+<td>好</td>
+<td>超参数较多，易早熟</td>
+</tr>
+<tr>
+<td>CMA-ES</td>
+<td>不需要</td>
+<td>全局</td>
+<td>支持</td>
+<td>好</td>
+<td>实现复杂，小预算下优势不明显</td>
+</tr>
+<tr>
+<td>贝叶斯优化</td>
+<td>不需要</td>
+<td>全局</td>
+<td>有限</td>
+<td>一般</td>
+<td>维数超过十几维后代理模型代价高</td>
+</tr>
+<tr>
+<td><strong>差分进化</strong></td>
+<td>不需要</td>
+<td>全局</td>
+<td>支持（同步批量）</td>
+<td>好</td>
+<td>收敛末段较慢，可接局部精修</td>
+</tr>
+</tbody></table>
+<p>差分进化由 Storn 与 Price 于 1997 年提出（<em>Journal of Global Optimization</em>, 11: 341–359）。它的优势在于：超参数只有种群规模、缩放因子和交叉概率三个，且默认值适用面广；变异步长由种群自身的差分向量决定，具有自适应的尺度；同一代个体相互独立，适合整批并行。其局限是在极小点附近收敛较慢，工程上常在 DE 之后接一次局部精修（如 TRF 或 LM）。</p>
+<h2 id="六、差分进化的算法细节"><a href="#六、差分进化的算法细节" class="headerlink" title="六、差分进化的算法细节"></a>六、差分进化的算法细节</h2><h3 id="6-1-变异"><a href="#6-1-变异" class="headerlink" title="6.1 变异"></a>6.1 变异</h3><p>对种群中的每个个体 <code>x_i</code>，从其余个体中随机选取若干个互不相同的个体，构造变异向量 <code>v_i</code>。常用策略：</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>变异向量</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>rand&#x2F;1</td>
+<td><code>v = x_r0 + F·(x_r1 − x_r2)</code></td>
+<td>探索性强，收敛慢</td>
+</tr>
+<tr>
+<td>best&#x2F;1</td>
+<td><code>v = x_best + F·(x_r0 − x_r1)</code></td>
+<td>收敛快，易早熟</td>
+</tr>
+<tr>
+<td>current-to-best&#x2F;1</td>
+<td><code>v = x_i + F·(x_best − x_i) + F·(x_r0 − x_r1)</code></td>
+<td>介于两者之间</td>
+</tr>
+<tr>
+<td>current-to-rand&#x2F;1</td>
+<td><code>v = x_i + F·(x_r0 − x_i) + F·(x_r1 − x_r2)</code></td>
+<td>保持多样性，适合多峰问题</td>
+</tr>
+</tbody></table>
+<p><code>F</code> 为缩放因子（本文记作 <code>wf</code>），常取 0.5～0.9。差分向量 <code>x_r1 − x_r2</code> 的尺度随种群收缩而收缩：种群分散时步长大，种群聚拢时步长小，这就是 DE 无需手动调节步长的原因。</p>
+<h3 id="6-2-交叉"><a href="#6-2-交叉" class="headerlink" title="6.2 交叉"></a>6.2 交叉</h3><p>二项式交叉逐维决定试验个体 <code>u_i</code> 的每一维取自变异向量还是父代：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">u_i,j = v_i,j    若 rand_j &lt; CR 或 j = j_rand<br>u_i,j = x_i,j    其他情况<br></code></pre></td></tr></table></figure>
+
+<p><code>j_rand</code> 是随机选定的一维，保证试验个体至少有一维来自变异向量，避免生成与父代完全相同的个体而浪费一次评估。<code>CR</code> 常取 0.9：高交叉概率使参数之间的相关方向能够被同时搜索。</p>
+<h3 id="6-3-越界处理"><a href="#6-3-越界处理" class="headerlink" title="6.3 越界处理"></a>6.3 越界处理</h3><p>变异后的向量可能越过参数边界。常见处理方式有三种：</p>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>做法</th>
+<th>影响</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>截断（clip）</td>
+<td>越界维度置为边界值</td>
+<td>实现简单；最优解位于边界附近时能够精确到达边界</td>
+</tr>
+<tr>
+<td>反射</td>
+<td>以边界为镜面反射回可行域</td>
+<td>边界附近采样密度均匀</td>
+</tr>
+<tr>
+<td>随机重置</td>
+<td>在可行域内重新均匀采样</td>
+<td>scipy 的做法；探索性强，但最优解恰在边界时收敛变慢</td>
+</tr>
+</tbody></table>
+<p>本文采用截断。截断的副作用是标定结果可能正好落在边界上，这通常意味着边界设置过窄或模型结构不足，因此收尾阶段需要对「接近边界」的参数给出告警（见第十节）。</p>
+<h3 id="6-4-选择"><a href="#6-4-选择" class="headerlink" title="6.4 选择"></a>6.4 选择</h3><p>试验个体 <code>u_i</code> 评估后与父代 <code>x_i</code> 一对一比较：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">x_i ← u_i    若 J(u_i) ≤ J(x_i)<br>x_i ← x_i    其他情况<br></code></pre></td></tr></table></figure>
+
+<p>使用 <code>≤</code> 而非 <code>&lt;</code>，使得误差相等的试验个体也能替换父代，种群可以在平坦区域内漂移而不是停滞。由于选择是贪婪的，种群中的最优误差单调不增；结合第八节「初值一定在初始种群中」的设计，可以得到一个对使用者有价值的保证：<strong>标定结果的总误差不会大于初值的总误差</strong>。</p>
+<h2 id="七、同步批量与异步更新"><a href="#七、同步批量与异步更新" class="headerlink" title="七、同步批量与异步更新"></a>七、同步批量与异步更新</h2><p>DE 的种群更新存在两种时序：</p>
+<ul>
+<li><strong>异步更新（immediate）</strong>：每评估完一个试验个体就立即执行选择，后续个体的变异可以使用刚被替换的新个体。经典 DE 论文和 scipy 的默认值采用这种方式。</li>
+<li><strong>同步批量（deferred）</strong>：一代的全部试验个体都基于本代开始时的种群生成，整批评估完成后再逐个选择。</li>
+</ul>
+<p>异步更新在串行条件下收敛略快，但存在两个工程问题：第一，第 <code>i + 1</code> 个试验个体的生成依赖第 <code>i</code> 个的评估结果，评估无法并行；第二，若强行并行，个体完成的先后顺序会影响后续变异所用的种群，结果取决于进程调度，无法复现。</p>
+<p>同步批量消除了代内依赖：<code>ask()</code> 一次生成整代候选，<code>tell()</code> 一次完成整代选择。评估可以任意并行，而选择的结果只取决于候选和误差的数值，与评估顺序无关。scipy 在 <code>workers</code> 大于 1 时也会强制使用 <code>updating=&#39;deferred&#39;</code>，原因相同。</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs text">main loop           DE              Evaluator             worker pool<br>    |    ask()       |                  |                      |<br>    |---------------&gt;|                  |                      |<br>    |&lt;---------------|  X (n x d)       |                      |<br>    |    evaluate(X)                    |                      |<br>    |----------------------------------&gt;|  n x m jobs          |<br>    |                                   |---------------------&gt;|<br>    |                                   |&lt;---------------------|<br>    |                                   |  write by (i, c)     |<br>    |&lt;----------------------------------|                      |<br>    |    J (n)                          |                      |<br>    |    tell(X, J)  |                  |                      |<br>    |---------------&gt;|                  |                      |<br>    |    stop? -&gt; next epoch / finalize                        |<br></code></pre></td></tr></table></figure>
+
+<p>每一代的时序：主流程调用 <code>ask()</code> 得到整代候选；评估器把 <code>n × m</code> 个作业交给进程池，结果按（候选编号 <code>i</code>, 工况编号 <code>c</code>）写回；主流程拿到整代误差后调用 <code>tell()</code> 完成选择，再执行终止判定。</p>
+<h2 id="八、初始种群：初值与-Sobol-预搜索"><a href="#八、初始种群：初值与-Sobol-预搜索" class="headerlink" title="八、初始种群：初值与 Sobol 预搜索"></a>八、初始种群：初值与 Sobol 预搜索</h2><p>初始种群的质量对 DE 的收敛速度影响显著。本文的初始种群由两部分组成：</p>
+<ol>
+<li><strong>用户给定的初值</strong>，保证在第 0 代中。这是第六节「结果不劣于初值」保证的前提。</li>
+<li><strong>预搜索的最优点</strong>。用 Sobol 低差异序列在参数空间中撒 <code>S</code> 个点并全部评估，按误差升序取前 <code>n − 1</code> 个。</li>
+</ol>
+<p>Sobol 序列相比独立均匀随机采样，在同样点数下对空间的覆盖更均匀，不会出现大片空白或局部聚集。加扰（scramble）的 Sobol 序列由种子控制，保持确定性。采样点数取 <code>S = max(256, 10n)</code>：对于低维问题，256 个点已能以较高概率在每个吸引域内落点；对于大种群，保证采样点至少是种群规模的 10 倍，使选出的初始种群具有足够的筛选余地。</p>
+<p>预搜索相当于一次粗粒度的全局扫描，代价是 <code>S·m</code> 次仿真。在演示案例中，预搜索把最优误差从初值的 7.1×10⁻¹ 降到 4.8×10⁻³，下降两个数量级，之后 DE 只需在一个较好的区域内精细搜索。</p>
+<h2 id="九、批量评估与并行"><a href="#九、批量评估与并行" class="headerlink" title="九、批量评估与并行"></a>九、批量评估与并行</h2><h3 id="9-1-作业粒度：候选-×-工况"><a href="#9-1-作业粒度：候选-×-工况" class="headerlink" title="9.1 作业粒度：候选 × 工况"></a>9.1 作业粒度：候选 × 工况</h3><p>评估器把一批 <code>n</code> 个候选在 <code>m</code> 个工况上的仿真拆成 <code>n × m</code> 个独立作业。以「候选 × 工况」而非「候选」为粒度，可以在工况数较多、候选数较少时仍然充分利用 worker。</p>
+<p>作业结果按（候选编号, 工况编号）写回结果矩阵，再逐行计算总误差。写回位置由编号决定而非由完成顺序决定，因此 worker 数量、调度顺序都不影响结果。</p>
+<h3 id="9-2-进程而非线程"><a href="#9-2-进程而非线程" class="headerlink" title="9.2 进程而非线程"></a>9.2 进程而非线程</h3><p>并行采用多进程，原因有三：Python 的全局解释器锁使 CPU 密集的纯 Python 求解无法通过线程加速；许多 FMU 的动态库包含全局状态，同一进程内并发调用不安全；单个仿真崩溃（例如动态库内部访问越界）在多进程模型下只影响一个 worker，主进程可以重启该 worker 后继续。</p>
+<h3 id="9-3-数据只传一次"><a href="#9-3-数据只传一次" class="headerlink" title="9.3 数据只传一次"></a>9.3 数据只传一次</h3><p>工况数据（实测序列、目标值）在整个标定过程中不变。通过进程池的 <code>initializer</code> 在 worker 启动时传入一次，之后每个作业只传递候选编号、工况编号和参数向量，进程间通信量与实测数据规模无关。</p>
+<h3 id="9-4-失败短路"><a href="#9-4-失败短路" class="headerlink" title="9.4 失败短路"></a>9.4 失败短路</h3><p>一组参数在某个工况上失败后，它在其他工况上的仿真已无意义。生产实现中可以在收到失败结果后丢弃该候选尚在排队的作业，节省计算量。演示代码为保持简洁未实现这一优化，但保留了「任一工况失败则 <code>J = +∞</code>」的语义。</p>
+<h3 id="9-5-Windows-平台的-spawn-启动"><a href="#9-5-Windows-平台的-spawn-启动" class="headerlink" title="9.5 Windows 平台的 spawn 启动"></a>9.5 Windows 平台的 spawn 启动</h3><p>Windows 上的多进程只能以 spawn 方式启动：子进程重新导入主模块。入口脚本必须用 <code>if __name__ == &quot;__main__&quot;:</code> 保护，否则每个 worker 都会再次执行标定主流程，表现为进程数量失控或程序挂起。</p>
+<h2 id="十、终止条件与收敛判定"><a href="#十、终止条件与收敛判定" class="headerlink" title="十、终止条件与收敛判定"></a>十、终止条件与收敛判定</h2><h3 id="10-1-三类终止条件"><a href="#10-1-三类终止条件" class="headerlink" title="10.1 三类终止条件"></a>10.1 三类终止条件</h3><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>判定方式</th>
+<th>终态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>跑满</td>
+<td>迭代达到最大代数</td>
+<td>完成</td>
+</tr>
+<tr>
+<td>早停</td>
+<td>种群已收敛（判据见 10.2）</td>
+<td>完成</td>
+</tr>
+<tr>
+<td>超时</td>
+<td>累计运行时间达到上限</td>
+<td>超时，返回当前最优，标记未收敛</td>
+</tr>
+</tbody></table>
+<p>超时只在代与代之间检查，不中断正在进行的一代。这样超时返回的结果等价于「用同一种子跑到第 <code>g</code> 代」的结果，仍然可以复现。</p>
+<h3 id="10-2-停滞不等于收敛"><a href="#10-2-停滞不等于收敛" class="headerlink" title="10.2 停滞不等于收敛"></a>10.2 停滞不等于收敛</h3><p>一种直观的早停判据是：连续若干代最优误差的改进量都小于阈值，即判定收敛。这一判据存在缺陷。以下是演示案例中关闭早停后逐代记录的数据：</p>
+<table>
+<thead>
+<tr>
+<th>代数</th>
+<th>最优误差 J</th>
+<th>种群误差相对离散度 std&#x2F;|mean|</th>
+<th>最优参数 (k, c, k3)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>5</td>
+<td>1.2790751e-04</td>
+<td>7.41e-01</td>
+<td>(41.4957, 1.1955, 814.1171)</td>
+</tr>
+<tr>
+<td>10</td>
+<td>1.2572194e-05</td>
+<td>1.24e+00</td>
+<td>(40.1134, 1.1996, 800.5300)</td>
+</tr>
+<tr>
+<td>20</td>
+<td>1.2572194e-05</td>
+<td>5.39e-01</td>
+<td>(40.1134, 1.1996, 800.5300)</td>
+</tr>
+<tr>
+<td>30</td>
+<td>1.2572194e-05</td>
+<td>7.02e-02</td>
+<td>(40.1134, 1.1996, 800.5300)</td>
+</tr>
+<tr>
+<td>40</td>
+<td>1.2507328e-05</td>
+<td>3.55e-03</td>
+<td>(40.0351, 1.1998, 800.2541)</td>
+</tr>
+<tr>
+<td>50</td>
+<td>1.2502785e-05</td>
+<td>1.56e-04</td>
+<td>(40.0219, 1.1994, 800.2146)</td>
+</tr>
+<tr>
+<td>60</td>
+<td>1.2502480e-05</td>
+<td>6.69e-06</td>
+<td>(40.0275, 1.1994, 800.2388)</td>
+</tr>
+<tr>
+<td>80</td>
+<td>1.2502472e-05</td>
+<td>7.36e-09</td>
+<td>(40.0277, 1.1994, 800.2371)</td>
+</tr>
+</tbody></table>
+<p>第 10 代到第 30 代，最优误差完全没有变化。若采用「连续 10 代无改进即停止」的判据，标定会在第 20 代结束，得到 k &#x3D; 40.11。而此时种群的相对离散度仍高达 0.5，大部分个体尚未到达最优区域；继续迭代后，种群聚拢，最优点移动到 k &#x3D; 40.03，误差进一步下降。用 Nelder–Mead 从第 20 代的最优点出发做局部精修，得到的极小值为 1.25025×10⁻⁵，与第 60 代以后的结果一致，说明第 20 代的结果并未收敛。</p>
+<p>停滞的原因在于：最优个体只有在某个试验个体优于它时才会更新，而种群其余个体在收敛过程中主要改善的是自身，暂时不会产生优于全局最优的试验个体。</p>
+<p>因此本文采用种群离散度作为早停判据：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">std(J_1, …, J_n) ≤ r_tol · |mean(J_1, …, J_n)|<br></code></pre></td></tr></table></figure>
+
+<p>即整个种群的误差已经聚拢到同一水平，并要求代数不少于 <code>minEpoch</code>。scipy 的 <code>differential_evolution</code> 使用同一类判据（<code>tol</code> 与 <code>atol</code> 参数）。演示案例中取 <code>r_tol = 1e-4</code>，标定在第 52 代结束。</p>
+<h3 id="10-3-达标判定与边界告警"><a href="#10-3-达标判定与边界告警" class="headerlink" title="10.3 达标判定与边界告警"></a>10.3 达标判定与边界告警</h3><p>收尾阶段对最优参数做两项检查：</p>
+<ul>
+<li><strong>达标判定</strong>：按 3.4 节的规则逐配对、逐工况判定。存在未达标工况时，任务仍以「完成」结束并给出告警，结果可以导出；是否接受由使用者决定。</li>
+<li><strong>接近边界告警</strong>：参数与上下界的距离小于区间宽度的 1% 时给出告警。最优参数贴近边界，通常说明真实值在边界之外，需要放宽边界或检查模型结构。</li>
+</ul>
+<h2 id="十一、可复现性"><a href="#十一、可复现性" class="headerlink" title="十一、可复现性"></a>十一、可复现性</h2><p>「同一配置、同一种子、同一软件版本、同一平台，结果逐位一致」是标定内核必须满足的性质。不可复现的标定结果无法审查、无法回归测试，也无法与其他工具对标。实现上需要逐项消除不确定性来源：</p>
+<table>
+<thead>
+<tr>
+<th>不确定性来源</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>随机数</td>
+<td>全程只用一个以种子初始化的生成器，每个个体消耗的随机数次数固定</td>
+</tr>
+<tr>
+<td>评估顺序</td>
+<td>同步批量更新；结果按编号写回</td>
+</tr>
+<tr>
+<td>并列最优</td>
+<td>误差相等时取下标最小的个体，<code>argmin</code> 和稳定排序天然满足</td>
+</tr>
+<tr>
+<td>墙钟时间</td>
+<td>时间只用于超时判定，且只在代与代之间检查，不进入算法逻辑</td>
+</tr>
+<tr>
+<td>浮点归约顺序</td>
+<td>误差按固定顺序累加，不使用依赖线程数的并行归约</td>
+</tr>
+<tr>
+<td>平台差异</td>
+<td>求解器版本、BLAS 实现、编译器优化会导致末位差异，复现承诺限定在同一平台</td>
+</tr>
+</tbody></table>
+<p>演示代码在结果中输出一个「复现指纹」：最优参数向量与最优误差的二进制表示的 SHA-256 摘要前 16 位。两次运行的指纹相同，即证明结果逐位一致。第十二节的实验对比了 1 个 worker 与 4 个 worker 的运行结果。</p>
+<h2 id="十二、演示项目"><a href="#十二、演示项目" class="headerlink" title="十二、演示项目"></a>十二、演示项目</h2><h3 id="12-1-被标定对象"><a href="#12-1-被标定对象" class="headerlink" title="12.1 被标定对象"></a>12.1 被标定对象</h3><p>演示模型是带立方刚度的质量-弹簧-阻尼系统（Duffing 振子），在阶跃外力作用下运动：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">m·x&#x27;&#x27; + c·x&#x27; + k·x + k3·x³ = F<br></code></pre></td></tr></table></figure>
+
+<p>质量 m &#x3D; 2 kg 已知，待标定参数为线性刚度 <code>k</code>、阻尼系数 <code>c</code> 和立方刚度 <code>k3</code>。模型输出位移 <code>x</code> 与速度 <code>v</code>。</p>
+<p>合成实测数据的生成方式：取真值 k &#x3D; 40 N&#x2F;m、c &#x3D; 1.2 N·s&#x2F;m、k3 &#x3D; 800 N&#x2F;m³ 仿真，在位移上叠加标准差 0.2 mm 的高斯噪声，在速度上叠加标准差 0.005 m&#x2F;s 的高斯噪声。设置两个工况：</p>
+<table>
+<thead>
+<tr>
+<th>工况</th>
+<th>外力 F</th>
+<th>峰值位移</th>
+<th>峰值处立方项与线性项之比 <code>k3·x²/k</code></th>
+<th>传感器零点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>small</td>
+<td>1 N</td>
+<td>44.35 mm</td>
+<td>约 4%</td>
+<td>0 mm</td>
+</tr>
+<tr>
+<td>large</td>
+<td>20 N</td>
+<td>378.66 mm</td>
+<td>约 287%</td>
+<td>+5 mm</td>
+</tr>
+</tbody></table>
+<p>两个工况的设置有明确目的：小外力下位移小，立方项 <code>k3·x³</code> 的贡献很弱，主要反映 <code>k</code> 和 <code>c</code>；大外力下立方项显著，才能确定 <code>k3</code>。large 工况的位移传感器带有 +5 mm 的零点偏差，用配对中的 offset 抵消。</p>
+<h3 id="12-2-项目结构"><a href="#12-2-项目结构" class="headerlink" title="12.2 项目结构"></a>12.2 项目结构</h3><p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs text">calib-demo/<br>├── requirements.txt     # 依赖：numpy、scipy<br>├── model.py             # 被标定模型与仿真接口<br>├── make_data.py         # 生成合成实测数据<br>├── objective.py         # 工况构造与目标函数<br>├── de.py                # 同步批量差分进化与 Sobol 预搜索<br>├── calibrate.py         # 评估器、生命周期、结果报告<br>├── compare_scipy.py     # 与 scipy 实现交叉核对<br>├── task.json            # 标定任务配置<br>└── data/                # 运行 make_data.py 后生成<br>    ├── small.csv<br>    └── large.csv<br></code></pre></td></tr></table></figure>
+
+<h3 id="12-3-依赖"><a href="#12-3-依赖" class="headerlink" title="12.3 依赖"></a>12.3 依赖</h3><p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">numpy&gt;=2.0<br>scipy&gt;=1.15<br></code></pre></td></tr></table></figure>
+
+<p><code>qmc.Sobol</code> 与 <code>differential_evolution</code> 的 <code>rng</code> 参数自 SciPy 1.15 起提供，因此要求 SciPy 不低于 1.15。</p>
+<h3 id="12-4-模型：model-py"><a href="#12-4-模型：model-py" class="headerlink" title="12.4 模型：model.py"></a>12.4 模型：model.py</h3><p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-string">&quot;&quot;&quot;演示模型：带立方刚度的质量-弹簧-阻尼系统（Duffing 振子），受阶跃外力作用。</span><br><span class="hljs-string"></span><br><span class="hljs-string">    m·x&#x27;&#x27; + c·x&#x27; + k·x + k3·x³ = F</span><br><span class="hljs-string"></span><br><span class="hljs-string">待标定参数：k（线性刚度，N/m）、c（阻尼系数，N·s/m）、k3（立方刚度，N/m³）。</span><br><span class="hljs-string">质量 m 视为已知。模型输出：位移 x（m）、速度 v（m/s）。</span><br><span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations<br><br><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><span class="hljs-keyword">from</span> scipy.integrate <span class="hljs-keyword">import</span> solve_ivp<br><br>MASS = <span class="hljs-number">2.0</span>  <span class="hljs-comment"># kg，已知量，不参与标定</span><br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">simulate</span>(<span class="hljs-params">params: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">float</span>], condition: <span class="hljs-built_in">dict</span>, sample_times: np.ndarray</span>):<br>    <span class="hljs-string">&quot;&quot;&quot;只在 sample_times 上输出结果。</span><br><span class="hljs-string"></span><br><span class="hljs-string">    成功返回 (True, &#123;&quot;x&quot;: ..., &quot;v&quot;: ...&#125;, None)；失败返回 (False, None, 原因)，不抛异常。</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br>    k, c, k3 = params[<span class="hljs-string">&quot;k&quot;</span>], params[<span class="hljs-string">&quot;c&quot;</span>], params[<span class="hljs-string">&quot;k3&quot;</span>]<br>    force = condition[<span class="hljs-string">&quot;force&quot;</span>]<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">rhs</span>(<span class="hljs-params">t, y</span>):<br>        x, v = y<br>        <span class="hljs-keyword">return</span> [v, (force - c * v - k * x - k3 * x ** <span class="hljs-number">3</span>) / MASS]<br><br>    sol = solve_ivp(rhs, (condition[<span class="hljs-string">&quot;start&quot;</span>], condition[<span class="hljs-string">&quot;stop&quot;</span>]), [condition[<span class="hljs-string">&quot;x0&quot;</span>], <span class="hljs-number">0.0</span>],<br>                    t_eval=sample_times, method=<span class="hljs-string">&quot;DOP853&quot;</span>, rtol=<span class="hljs-number">1e-8</span>, atol=<span class="hljs-number">1e-10</span>)<br>    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> sol.success:<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>, <span class="hljs-literal">None</span>, sol.message<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>, &#123;<span class="hljs-string">&quot;x&quot;</span>: sol.y[<span class="hljs-number">0</span>], <span class="hljs-string">&quot;v&quot;</span>: sol.y[<span class="hljs-number">1</span>]&#125;, <span class="hljs-literal">None</span><br></code></pre></td></tr></table></figure>
+
+<p>积分器选用 8 阶显式方法 DOP853，相对容差 10⁻⁸。积分误差必须远小于测量噪声，否则误差曲面会因积分误差而出现锯齿，DE 的末段收敛会受到干扰（见第十三节）。</p>
+<h3 id="12-5-合成数据：make-data-py"><a href="#12-5-合成数据：make-data-py" class="headerlink" title="12.5 合成数据：make_data.py"></a>12.5 合成数据：make_data.py</h3><p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-string">&quot;&quot;&quot;生成合成「实测」数据：用一组真值仿真，再叠加测量噪声和传感器零点偏差。&quot;&quot;&quot;</span><br><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations<br><br><span class="hljs-keyword">import</span> csv<br><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path<br><br><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><br><span class="hljs-keyword">from</span> model <span class="hljs-keyword">import</span> simulate<br><br>TRUE_PARAMS = &#123;<span class="hljs-string">&quot;k&quot;</span>: <span class="hljs-number">40.0</span>, <span class="hljs-string">&quot;c&quot;</span>: <span class="hljs-number">1.2</span>, <span class="hljs-string">&quot;k3&quot;</span>: <span class="hljs-number">800.0</span>&#125;<br>CONDITIONS = &#123;<br>    <span class="hljs-comment"># zero_mm：位移传感器的零点偏差（mm），标定时用 offset 抵消</span><br>    <span class="hljs-string">&quot;small&quot;</span>: &#123;<span class="hljs-string">&quot;force&quot;</span>: <span class="hljs-number">1.0</span>, <span class="hljs-string">&quot;x0&quot;</span>: <span class="hljs-number">0.0</span>, <span class="hljs-string">&quot;start&quot;</span>: <span class="hljs-number">0.0</span>, <span class="hljs-string">&quot;stop&quot;</span>: <span class="hljs-number">10.0</span>, <span class="hljs-string">&quot;zero_mm&quot;</span>: <span class="hljs-number">0.0</span>&#125;,<br>    <span class="hljs-string">&quot;large&quot;</span>: &#123;<span class="hljs-string">&quot;force&quot;</span>: <span class="hljs-number">20.0</span>, <span class="hljs-string">&quot;x0&quot;</span>: <span class="hljs-number">0.0</span>, <span class="hljs-string">&quot;start&quot;</span>: <span class="hljs-number">0.0</span>, <span class="hljs-string">&quot;stop&quot;</span>: <span class="hljs-number">10.0</span>, <span class="hljs-string">&quot;zero_mm&quot;</span>: <span class="hljs-number">5.0</span>&#125;,<br>&#125;<br>SIGMA_X_MM = <span class="hljs-number">0.2</span>    <span class="hljs-comment"># 位移噪声标准差，mm</span><br>SIGMA_V = <span class="hljs-number">0.005</span>     <span class="hljs-comment"># 速度噪声标准差，m/s</span><br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:<br>    rng = np.random.default_rng(<span class="hljs-number">2026</span>)<br>    out = Path(__file__).parent / <span class="hljs-string">&quot;data&quot;</span><br>    out.mkdir(exist_ok=<span class="hljs-literal">True</span>)<br>    t = np.<span class="hljs-built_in">round</span>(np.arange(<span class="hljs-number">0.0</span>, <span class="hljs-number">10.0</span> + <span class="hljs-number">1e-9</span>, <span class="hljs-number">0.02</span>), <span class="hljs-number">6</span>)<br>    <span class="hljs-keyword">for</span> cid, cond <span class="hljs-keyword">in</span> CONDITIONS.items():<br>        ok, y, err = simulate(TRUE_PARAMS, cond, t)<br>        <span class="hljs-keyword">assert</span> ok, err<br>        disp_mm = y[<span class="hljs-string">&quot;x&quot;</span>] * <span class="hljs-number">1000.0</span> + cond[<span class="hljs-string">&quot;zero_mm&quot;</span>] + rng.normal(<span class="hljs-number">0.0</span>, SIGMA_X_MM, t.size)<br>        vel = y[<span class="hljs-string">&quot;v&quot;</span>] + rng.normal(<span class="hljs-number">0.0</span>, SIGMA_V, t.size)<br>        <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(out / <span class="hljs-string">f&quot;<span class="hljs-subst">&#123;cid&#125;</span>.csv&quot;</span>, <span class="hljs-string">&quot;w&quot;</span>, newline=<span class="hljs-string">&quot;&quot;</span>, encoding=<span class="hljs-string">&quot;utf-8&quot;</span>) <span class="hljs-keyword">as</span> f:<br>            writer = csv.writer(f)<br>            writer.writerow([<span class="hljs-string">&quot;time&quot;</span>, <span class="hljs-string">&quot;disp_mm&quot;</span>, <span class="hljs-string">&quot;vel&quot;</span>])<br>            <span class="hljs-keyword">for</span> ti, xi, vi <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(t, disp_mm, vel):<br>                writer.writerow([<span class="hljs-string">f&quot;<span class="hljs-subst">&#123;ti:<span class="hljs-number">.2</span>f&#125;</span>&quot;</span>, <span class="hljs-string">f&quot;<span class="hljs-subst">&#123;xi:<span class="hljs-number">.4</span>f&#125;</span>&quot;</span>, <span class="hljs-string">f&quot;<span class="hljs-subst">&#123;vi:<span class="hljs-number">.5</span>f&#125;</span>&quot;</span>])<br>        <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;<span class="hljs-subst">&#123;cid&#125;</span>: <span class="hljs-subst">&#123;t.size&#125;</span> 行，峰值位移 <span class="hljs-subst">&#123;y[<span class="hljs-string">&#x27;x&#x27;</span>].<span class="hljs-built_in">max</span>() * <span class="hljs-number">1000</span>:<span class="hljs-number">.2</span>f&#125;</span> mm -&gt; data/<span class="hljs-subst">&#123;cid&#125;</span>.csv&quot;</span>)<br><br><br><span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">&quot;__main__&quot;</span>:<br>    main()<br></code></pre></td></tr></table></figure>
+
+<h3 id="12-6-目标函数：objective-py"><a href="#12-6-目标函数：objective-py" class="headerlink" title="12.6 目标函数：objective.py"></a>12.6 目标函数：objective.py</h3><p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-string">&quot;&quot;&quot;目标函数：配对 RMSE → 工况误差 → 总误差。</span><br><span class="hljs-string"></span><br><span class="hljs-string">- 目标值 = 实测值 × scale + offset（单位换算与零点修正）</span><br><span class="hljs-string">- 配对 RMSE = sqrt(mean((仿真 − 目标)²))，只在比较窗口 [start, stop] 内的实测点上计算</span><br><span class="hljs-string">- 工况误差 E = Σ w·RMSE² / Σ w</span><br><span class="hljs-string">- 总误差 J = 各工况误差的算术平均</span><br><span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations<br><br><span class="hljs-keyword">import</span> csv<br><span class="hljs-keyword">import</span> math<br><span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass<br><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path<br><br><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><br><span class="hljs-keyword">from</span> model <span class="hljs-keyword">import</span> simulate<br><br><br><span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">Pair</span>:<br>    output: <span class="hljs-built_in">str</span>             <span class="hljs-comment"># 模型输出名</span><br>    column: <span class="hljs-built_in">str</span>             <span class="hljs-comment"># 实测文件列名</span><br>    target: np.ndarray      <span class="hljs-comment"># 已换算的目标值</span><br>    weight: <span class="hljs-built_in">float</span><br>    tolerance: <span class="hljs-built_in">float</span> | <span class="hljs-literal">None</span>  <span class="hljs-comment"># RMSE 上限，只用于达标判定，不参与优化</span><br><br><br><span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">Scenario</span>:<br>    <span class="hljs-built_in">id</span>: <span class="hljs-built_in">str</span><br>    condition: <span class="hljs-built_in">dict</span><br>    times: np.ndarray<br>    pairs: <span class="hljs-built_in">tuple</span>[Pair, ...]<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">read_csv</span>(<span class="hljs-params">path: Path</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, np.ndarray]:<br>    <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(path, encoding=<span class="hljs-string">&quot;utf-8&quot;</span>, newline=<span class="hljs-string">&quot;&quot;</span>) <span class="hljs-keyword">as</span> f:<br>        rows = <span class="hljs-built_in">list</span>(csv.DictReader(f))<br>    <span class="hljs-keyword">return</span> &#123;key: np.array([<span class="hljs-built_in">float</span>(r[key]) <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> rows]) <span class="hljs-keyword">for</span> key <span class="hljs-keyword">in</span> rows[<span class="hljs-number">0</span>]&#125;<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">build_scenarios</span>(<span class="hljs-params">task: <span class="hljs-built_in">dict</span>, base_dir: Path, only: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">tuple</span>[Scenario, ...]:<br>    scenarios = []<br>    <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;conditions&quot;</span>]:<br>        <span class="hljs-keyword">if</span> only <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> c[<span class="hljs-string">&quot;id&quot;</span>] <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> only:<br>            <span class="hljs-keyword">continue</span><br>        data = read_csv(base_dir / c[<span class="hljs-string">&quot;file&quot;</span>])<br>        t = data[<span class="hljs-string">&quot;time&quot;</span>]<br>        window = (t &gt;= c[<span class="hljs-string">&quot;start&quot;</span>]) &amp; (t &lt;= c[<span class="hljs-string">&quot;stop&quot;</span>])<br>        pairs = <span class="hljs-built_in">tuple</span>(Pair(output=p[<span class="hljs-string">&quot;output&quot;</span>], column=p[<span class="hljs-string">&quot;column&quot;</span>],<br>                           target=data[p[<span class="hljs-string">&quot;column&quot;</span>]][window] * p[<span class="hljs-string">&quot;scale&quot;</span>] + p[<span class="hljs-string">&quot;offset&quot;</span>],<br>                           weight=p[<span class="hljs-string">&quot;weight&quot;</span>], tolerance=p.get(<span class="hljs-string">&quot;tolerance&quot;</span>)) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> c[<span class="hljs-string">&quot;pairs&quot;</span>])<br>        scenarios.append(Scenario(<span class="hljs-built_in">id</span>=c[<span class="hljs-string">&quot;id&quot;</span>], condition=c, times=t[window], pairs=pairs))<br>    <span class="hljs-keyword">return</span> <span class="hljs-built_in">tuple</span>(scenarios)<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">pair_rmse</span>(<span class="hljs-params">simulated: np.ndarray, target: np.ndarray</span>) -&gt; <span class="hljs-built_in">float</span>:<br>    <span class="hljs-keyword">return</span> <span class="hljs-built_in">float</span>(np.sqrt(np.mean((simulated - target) ** <span class="hljs-number">2</span>)))<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">condition_cost</span>(<span class="hljs-params">rmse, weights</span>) -&gt; <span class="hljs-built_in">float</span>:<br>    <span class="hljs-keyword">return</span> <span class="hljs-built_in">sum</span>(w * r * r <span class="hljs-keyword">for</span> w, r <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(weights, rmse)) / <span class="hljs-built_in">sum</span>(weights)<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">total_cost</span>(<span class="hljs-params">condition_costs</span>) -&gt; <span class="hljs-built_in">float</span>:<br>    <span class="hljs-keyword">return</span> <span class="hljs-built_in">sum</span>(condition_costs) / <span class="hljs-built_in">len</span>(condition_costs)<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">run_job</span>(<span class="hljs-params">names, x, scenario: Scenario</span>):<br>    <span class="hljs-string">&quot;&quot;&quot;一个作业 = 一组参数 × 一个工况。返回 (工况误差, 各配对 RMSE)；仿真失败返回 (inf, None)。&quot;&quot;&quot;</span><br>    ok, values, _ = simulate(<span class="hljs-built_in">dict</span>(<span class="hljs-built_in">zip</span>(names, <span class="hljs-built_in">map</span>(<span class="hljs-built_in">float</span>, x))), scenario.condition, scenario.times)<br>    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> ok:<br>        <span class="hljs-keyword">return</span> math.inf, <span class="hljs-literal">None</span><br>    rmse = <span class="hljs-built_in">tuple</span>(pair_rmse(values[p.output], p.target) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> scenario.pairs)<br>    cost = condition_cost(rmse, [p.weight <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> scenario.pairs])<br>    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> math.isfinite(cost):  <span class="hljs-comment"># 数值发散产生的 NaN 同样视为失败</span><br>        <span class="hljs-keyword">return</span> math.inf, <span class="hljs-literal">None</span><br>    <span class="hljs-keyword">return</span> cost, rmse<br></code></pre></td></tr></table></figure>
+
+<p><code>build_scenarios</code> 在标定开始前一次性完成目标值换算与比较窗口截取；<code>run_job</code> 是 worker 中执行的最小单元，对应第九节所述的「一组参数 × 一个工况」。</p>
+<h3 id="12-7-差分进化：de-py"><a href="#12-7-差分进化：de-py" class="headerlink" title="12.7 差分进化：de.py"></a>12.7 差分进化：de.py</h3><p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-string">&quot;&quot;&quot;同步批量差分进化（DE）与 Sobol 预搜索。</span><br><span class="hljs-string"></span><br><span class="hljs-string">- ask() 用本代开始时的种群一次生成全部试验个体，tell() 逐个贪婪选择。</span><br><span class="hljs-string">  同一代的试验个体互不依赖，因此可以整批并行评估，结果与评估顺序无关。</span><br><span class="hljs-string">- 全程只使用一个随机数生成器，调用次数和顺序固定，同一 seed 的候选序列逐位一致。</span><br><span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations<br><br><span class="hljs-keyword">import</span> warnings<br><br><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><span class="hljs-keyword">from</span> scipy.stats <span class="hljs-keyword">import</span> qmc<br><br>DONORS = &#123;<span class="hljs-string">&quot;rand_1&quot;</span>: <span class="hljs-number">3</span>, <span class="hljs-string">&quot;best_1&quot;</span>: <span class="hljs-number">2</span>, <span class="hljs-string">&quot;current_to_rand&quot;</span>: <span class="hljs-number">3</span>&#125;<br><br><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">DifferentialEvolution</span>:<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, lower, upper, population, costs, *, wf, cr, strategy, rng</span>):<br>        <span class="hljs-variable language_">self</span>.lower, <span class="hljs-variable language_">self</span>.upper = np.asarray(lower, <span class="hljs-built_in">float</span>), np.asarray(upper, <span class="hljs-built_in">float</span>)<br>        <span class="hljs-variable language_">self</span>.X = np.array(population, dtype=<span class="hljs-built_in">float</span>)<br>        <span class="hljs-variable language_">self</span>.cost = np.array(costs, dtype=<span class="hljs-built_in">float</span>)<br>        <span class="hljs-variable language_">self</span>.wf, <span class="hljs-variable language_">self</span>.cr, <span class="hljs-variable language_">self</span>.strategy, <span class="hljs-variable language_">self</span>.rng = wf, cr, strategy, rng<br><br><span class="hljs-meta">    @property</span><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">best_index</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:<br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">int</span>(np.argmin(<span class="hljs-variable language_">self</span>.cost))  <span class="hljs-comment"># 并列时取下标最小的个体</span><br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">ask</span>(<span class="hljs-params">self</span>) -&gt; np.ndarray:<br>        X, wf = <span class="hljs-variable language_">self</span>.X, <span class="hljs-variable language_">self</span>.wf<br>        n, d = X.shape<br>        g = X[<span class="hljs-variable language_">self</span>.best_index]<br>        trials = np.empty_like(X)<br>        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(n):<br>            r = <span class="hljs-variable language_">self</span>.rng.choice([j <span class="hljs-keyword">for</span> j <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(n) <span class="hljs-keyword">if</span> j != i], DONORS[<span class="hljs-variable language_">self</span>.strategy], replace=<span class="hljs-literal">False</span>)<br>            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.strategy == <span class="hljs-string">&quot;rand_1&quot;</span>:<br>                v = X[r[<span class="hljs-number">0</span>]] + wf * (X[r[<span class="hljs-number">1</span>]] - X[r[<span class="hljs-number">2</span>]])<br>            <span class="hljs-keyword">elif</span> <span class="hljs-variable language_">self</span>.strategy == <span class="hljs-string">&quot;best_1&quot;</span>:<br>                v = g + wf * (X[r[<span class="hljs-number">0</span>]] - X[r[<span class="hljs-number">1</span>]])<br>            <span class="hljs-keyword">else</span>:  <span class="hljs-comment"># current_to_rand</span><br>                v = X[i] + wf * (X[r[<span class="hljs-number">0</span>]] - X[i]) + wf * (X[r[<span class="hljs-number">1</span>]] - X[r[<span class="hljs-number">2</span>]])<br>            mask = <span class="hljs-variable language_">self</span>.rng.random(d) &lt; <span class="hljs-variable language_">self</span>.cr<br>            mask[<span class="hljs-variable language_">self</span>.rng.integers(d)] = <span class="hljs-literal">True</span>  <span class="hljs-comment"># 至少一维取自变异向量，避免试验个体与父代相同</span><br>            trials[i] = np.clip(np.where(mask, v, X[i]), <span class="hljs-variable language_">self</span>.lower, <span class="hljs-variable language_">self</span>.upper)<br>        <span class="hljs-keyword">return</span> trials<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">tell</span>(<span class="hljs-params">self, trials: np.ndarray, costs: np.ndarray</span>) -&gt; <span class="hljs-literal">None</span>:<br>        better = costs &lt;= <span class="hljs-variable language_">self</span>.cost<br>        <span class="hljs-variable language_">self</span>.X[better] = trials[better]<br>        <span class="hljs-variable language_">self</span>.cost[better] = costs[better]<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">sobol_points</span>(<span class="hljs-params">n: <span class="hljs-built_in">int</span>, lower, upper, seed: <span class="hljs-built_in">int</span></span>) -&gt; np.ndarray:<br>    sampler = qmc.Sobol(d=<span class="hljs-built_in">len</span>(lower), scramble=<span class="hljs-literal">True</span>, rng=np.random.default_rng(seed))<br>    <span class="hljs-keyword">with</span> warnings.catch_warnings():<br>        warnings.simplefilter(<span class="hljs-string">&quot;ignore&quot;</span>, UserWarning)  <span class="hljs-comment"># n 不是 2 的幂时的均衡性提示</span><br>        unit = sampler.random(n)<br>    <span class="hljs-keyword">return</span> qmc.scale(unit, lower, upper)<br></code></pre></td></tr></table></figure>
+
+<p><code>ask()</code> 中每个个体固定消耗三类随机数：<code>choice</code> 选取差分个体、<code>random(d)</code> 决定交叉掩码、<code>integers(d)</code> 选取 <code>j_rand</code>。调用次数与评估结果无关，这是可复现性的基础。</p>
+<h3 id="12-8-主程序：calibrate-py"><a href="#12-8-主程序：calibrate-py" class="headerlink" title="12.8 主程序：calibrate.py"></a>12.8 主程序：calibrate.py</h3><p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-string">&quot;&quot;&quot;参数标定主程序：initial → presearch → evolve → finalize。</span><br><span class="hljs-string"></span><br><span class="hljs-string">用法：python calibrate.py [--task task.json] [--workers 4] [--seed 42] [--only small]</span><br><span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations<br><br><span class="hljs-keyword">import</span> argparse<br><span class="hljs-keyword">import</span> hashlib<br><span class="hljs-keyword">import</span> json<br><span class="hljs-keyword">import</span> math<br><span class="hljs-keyword">import</span> time<br><span class="hljs-keyword">from</span> concurrent.futures <span class="hljs-keyword">import</span> ProcessPoolExecutor<br><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path<br><br><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><br><span class="hljs-keyword">import</span> objective<br><span class="hljs-keyword">from</span> de <span class="hljs-keyword">import</span> DifferentialEvolution, sobol_points<br><br><span class="hljs-comment"># ---------------------------------------------------------------- 评估器</span><br><br>_SCENARIOS: <span class="hljs-built_in">tuple</span>[objective.Scenario, ...] = ()<br>_NAMES: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">_init_worker</span>(<span class="hljs-params">scenarios, names</span>) -&gt; <span class="hljs-literal">None</span>:<br>    <span class="hljs-string">&quot;&quot;&quot;每个 worker 启动时接收一次工况数据，之后的作业只传参数向量。&quot;&quot;&quot;</span><br>    <span class="hljs-keyword">global</span> _SCENARIOS, _NAMES<br>    _SCENARIOS, _NAMES = scenarios, names<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">_job</span>(<span class="hljs-params">arg</span>):<br>    i, c, x = arg<br>    <span class="hljs-keyword">return</span> i, c, objective.run_job(_NAMES, x, _SCENARIOS[c])<br><br><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">Evaluator</span>:<br>    <span class="hljs-string">&quot;&quot;&quot;把一批候选参数在全部工况上仿真，返回每组参数的总误差 J。&quot;&quot;&quot;</span><br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, scenarios, names, workers: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:<br>        <span class="hljs-variable language_">self</span>.scenarios, <span class="hljs-variable language_">self</span>.names, <span class="hljs-variable language_">self</span>.m = scenarios, names, <span class="hljs-built_in">len</span>(scenarios)<br>        <span class="hljs-variable language_">self</span>.simulations = <span class="hljs-number">0</span><br>        <span class="hljs-variable language_">self</span>.failed = <span class="hljs-number">0</span><br>        <span class="hljs-variable language_">self</span>.pool = <span class="hljs-literal">None</span><br>        <span class="hljs-keyword">if</span> workers &gt; <span class="hljs-number">1</span>:<br>            <span class="hljs-variable language_">self</span>.pool = ProcessPoolExecutor(workers, initializer=_init_worker, initargs=(scenarios, names))<br>        <span class="hljs-keyword">else</span>:<br>            _init_worker(scenarios, names)<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">evaluate</span>(<span class="hljs-params">self, X: np.ndarray</span>) -&gt; np.ndarray:<br>        jobs = [(i, c, X[i]) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-built_in">len</span>(X)) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-variable language_">self</span>.m)]<br>        mapper = <span class="hljs-variable language_">self</span>.pool.<span class="hljs-built_in">map</span>(_job, jobs, chunksize=<span class="hljs-number">4</span>) <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.pool <span class="hljs-keyword">else</span> <span class="hljs-built_in">map</span>(_job, jobs)<br>        parts = np.empty((<span class="hljs-built_in">len</span>(X), <span class="hljs-variable language_">self</span>.m))<br>        <span class="hljs-keyword">for</span> i, c, (cost, _) <span class="hljs-keyword">in</span> mapper:   <span class="hljs-comment"># 按 (候选, 工况) 写回，与完成顺序无关</span><br>            parts[i, c] = cost<br>        <span class="hljs-variable language_">self</span>.simulations += <span class="hljs-built_in">len</span>(jobs)<br>        <span class="hljs-variable language_">self</span>.failed += <span class="hljs-built_in">int</span>(np.isinf(parts).<span class="hljs-built_in">sum</span>())<br>        <span class="hljs-keyword">return</span> np.array([math.inf <span class="hljs-keyword">if</span> np.isinf(row).<span class="hljs-built_in">any</span>() <span class="hljs-keyword">else</span> objective.total_cost(row) <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> parts])<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">detail</span>(<span class="hljs-params">self, x: np.ndarray</span>):<br>        <span class="hljs-string">&quot;&quot;&quot;单组参数的逐工况结果，只在收尾时调用一次。&quot;&quot;&quot;</span><br>        <span class="hljs-keyword">return</span> [objective.run_job(<span class="hljs-variable language_">self</span>.names, x, s) <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.scenarios]<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">close</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:<br>        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.pool:<br>            <span class="hljs-variable language_">self</span>.pool.shutdown()<br><br><br><span class="hljs-comment"># ---------------------------------------------------------------- 生命周期</span><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">early_stop</span>(<span class="hljs-params">costs: np.ndarray, epoch: <span class="hljs-built_in">int</span>, min_epoch: <span class="hljs-built_in">int</span>, rtol: <span class="hljs-built_in">float</span></span>) -&gt; <span class="hljs-built_in">bool</span>:<br>    <span class="hljs-string">&quot;&quot;&quot;epoch ≥ minEpoch 之后，种群误差的相对离散度 std/|mean| 小于 rtol，即整个种群已经聚拢。&quot;&quot;&quot;</span><br>    <span class="hljs-keyword">return</span> epoch &gt;= min_epoch <span class="hljs-keyword">and</span> <span class="hljs-built_in">float</span>(np.std(costs)) &lt;= rtol * <span class="hljs-built_in">abs</span>(<span class="hljs-built_in">float</span>(np.mean(costs)))<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">bound_warning</span>(<span class="hljs-params">name, value, low, high, ratio</span>):<br>    margin = (high - low) * ratio<br>    <span class="hljs-keyword">if</span> value - low &lt; margin:<br>        <span class="hljs-keyword">return</span> <span class="hljs-string">f&quot;<span class="hljs-subst">&#123;name&#125;</span> = <span class="hljs-subst">&#123;value:<span class="hljs-number">.6</span>g&#125;</span>，接近下界 <span class="hljs-subst">&#123;low:g&#125;</span>&quot;</span><br>    <span class="hljs-keyword">if</span> high - value &lt; margin:<br>        <span class="hljs-keyword">return</span> <span class="hljs-string">f&quot;<span class="hljs-subst">&#123;name&#125;</span> = <span class="hljs-subst">&#123;value:<span class="hljs-number">.6</span>g&#125;</span>，接近上界 <span class="hljs-subst">&#123;high:g&#125;</span>&quot;</span><br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span><br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">run_calibration</span>(<span class="hljs-params">task: <span class="hljs-built_in">dict</span>, base_dir: Path, *, workers: <span class="hljs-built_in">int</span> = <span class="hljs-number">1</span>, seed: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,</span><br><span class="hljs-params">                    only: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>, log=<span class="hljs-built_in">print</span></span>) -&gt; <span class="hljs-built_in">dict</span>:<br>    algo = task[<span class="hljs-string">&quot;algorithm&quot;</span>]<br>    seed = algo[<span class="hljs-string">&quot;seed&quot;</span>] <span class="hljs-keyword">if</span> seed <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> seed<br>    pop, epochs = algo[<span class="hljs-string">&quot;popSize&quot;</span>], algo[<span class="hljs-string">&quot;epoch&quot;</span>]<br>    names = [p[<span class="hljs-string">&quot;name&quot;</span>] <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]]<br>    lower = np.array([p[<span class="hljs-string">&quot;min&quot;</span>] <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]], <span class="hljs-built_in">float</span>)<br>    upper = np.array([p[<span class="hljs-string">&quot;max&quot;</span>] <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]], <span class="hljs-built_in">float</span>)<br>    x0 = np.array([p[<span class="hljs-string">&quot;initial&quot;</span>] <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]], <span class="hljs-built_in">float</span>)<br>    scenarios = objective.build_scenarios(task, base_dir, only)<br>    started = time.perf_counter()<br>    ev = Evaluator(scenarios, names, workers)<br>    <span class="hljs-keyword">try</span>:<br>        <span class="hljs-comment"># 1. initial：初值必须能仿真，否则直接失败</span><br>        c0 = ev.evaluate(x0[<span class="hljs-literal">None</span>, :])[<span class="hljs-number">0</span>]<br>        <span class="hljs-keyword">if</span> math.isinf(c0):<br>            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">&quot;初值下仿真失败，检查初值和模型&quot;</span>)<br>        log(<span class="hljs-string">f&quot;[initial]   J0 = <span class="hljs-subst">&#123;c0:<span class="hljs-number">.6</span>e&#125;</span>&quot;</span>)<br><br>        <span class="hljs-comment"># 2. presearch：Sobol 撒点，第 0 代 = 初值 + 最好的 pop-1 个点</span><br>        n_samples = <span class="hljs-built_in">max</span>(<span class="hljs-number">256</span>, <span class="hljs-number">10</span> * pop)<br>        samples = sobol_points(n_samples, lower, upper, seed)<br>        costs = ev.evaluate(samples)<br>        order = np.argsort(costs, kind=<span class="hljs-string">&quot;stable&quot;</span>)[:pop - <span class="hljs-number">1</span>]<br>        population = np.vstack([x0, samples[order]])<br>        pop_costs = np.concatenate([[c0], costs[order]])<br>        log(<span class="hljs-string">f&quot;[presearch] <span class="hljs-subst">&#123;n_samples&#125;</span> 个采样点，第 0 代最优 J = <span class="hljs-subst">&#123;pop_costs.<span class="hljs-built_in">min</span>():<span class="hljs-number">.6</span>e&#125;</span>&quot;</span>)<br><br>        <span class="hljs-comment"># 3. evolve：同步批量 DE</span><br>        de = DifferentialEvolution(lower, upper, population, pop_costs, wf=algo[<span class="hljs-string">&quot;wf&quot;</span>], cr=algo[<span class="hljs-string">&quot;cr&quot;</span>],<br>                                   strategy=algo[<span class="hljs-string">&quot;strategy&quot;</span>], rng=np.random.default_rng(seed))<br>        history = [<span class="hljs-built_in">float</span>(de.cost.<span class="hljs-built_in">min</span>())]<br>        reason, epoch = <span class="hljs-string">&quot;maxEpoch&quot;</span>, <span class="hljs-number">0</span><br>        es = task[<span class="hljs-string">&quot;earlyStop&quot;</span>]<br>        <span class="hljs-keyword">for</span> epoch <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">1</span>, epochs + <span class="hljs-number">1</span>):<br>            trials = de.ask()<br>            de.tell(trials, ev.evaluate(trials))<br>            history.append(<span class="hljs-built_in">float</span>(de.cost.<span class="hljs-built_in">min</span>()))<br>            <span class="hljs-keyword">if</span> epoch == <span class="hljs-number">1</span> <span class="hljs-keyword">or</span> epoch % <span class="hljs-number">10</span> == <span class="hljs-number">0</span>:<br>                log(<span class="hljs-string">f&quot;[evolve]    epoch <span class="hljs-subst">&#123;epoch:3d&#125;</span>  best J = <span class="hljs-subst">&#123;history[-<span class="hljs-number">1</span>]:<span class="hljs-number">.6</span>e&#125;</span>  仿真 <span class="hljs-subst">&#123;ev.simulations&#125;</span> 次&quot;</span>)<br>            <span class="hljs-keyword">if</span> early_stop(de.cost, epoch, es[<span class="hljs-string">&quot;minEpoch&quot;</span>], es[<span class="hljs-string">&quot;rtol&quot;</span>]):<br>                reason = <span class="hljs-string">&quot;earlyStop&quot;</span><br>                log(<span class="hljs-string">f&quot;[evolve]    epoch <span class="hljs-subst">&#123;epoch:3d&#125;</span>  种群误差相对离散度小于 <span class="hljs-subst">&#123;es[<span class="hljs-string">&#x27;rtol&#x27;</span>]:g&#125;</span>，提前结束&quot;</span>)<br>                <span class="hljs-keyword">break</span><br><br>        <span class="hljs-comment"># 4. finalize：组装结果，判定达标和接近边界</span><br>        best = de.X[de.best_index].copy()<br>        conditions = []<br>        <span class="hljs-keyword">for</span> s, (cost, rmse) <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(scenarios, ev.detail(best)):<br>            pairs = [&#123;<span class="hljs-string">&quot;output&quot;</span>: p.output, <span class="hljs-string">&quot;column&quot;</span>: p.column, <span class="hljs-string">&quot;rmse&quot;</span>: r,<br>                      <span class="hljs-string">&quot;pass&quot;</span>: <span class="hljs-literal">None</span> <span class="hljs-keyword">if</span> p.tolerance <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> r &lt;= p.tolerance&#125;<br>                     <span class="hljs-keyword">for</span> p, r <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(s.pairs, rmse)]<br>            judged = [q[<span class="hljs-string">&quot;pass&quot;</span>] <span class="hljs-keyword">for</span> q <span class="hljs-keyword">in</span> pairs <span class="hljs-keyword">if</span> q[<span class="hljs-string">&quot;pass&quot;</span>] <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>]<br>            conditions.append(&#123;<span class="hljs-string">&quot;id&quot;</span>: s.<span class="hljs-built_in">id</span>, <span class="hljs-string">&quot;cost&quot;</span>: cost, <span class="hljs-string">&quot;pairs&quot;</span>: pairs, <span class="hljs-string">&quot;pass&quot;</span>: <span class="hljs-built_in">all</span>(judged) <span class="hljs-keyword">if</span> judged <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>&#125;)<br>        warnings = [w <span class="hljs-keyword">for</span> w <span class="hljs-keyword">in</span> (bound_warning(n, v, lo, hi, task[<span class="hljs-string">&quot;boundHitRatio&quot;</span>])<br>                                <span class="hljs-keyword">for</span> n, v, lo, hi <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(names, best, lower, upper)) <span class="hljs-keyword">if</span> w]<br>        warnings += [<span class="hljs-string">f&quot;工况 <span class="hljs-subst">&#123;c[<span class="hljs-string">&#x27;id&#x27;</span>]&#125;</span> 未达标&quot;</span> <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> conditions <span class="hljs-keyword">if</span> c[<span class="hljs-string">&quot;pass&quot;</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">False</span>]<br>        <span class="hljs-keyword">return</span> &#123;<br>            <span class="hljs-string">&quot;parameters&quot;</span>: <span class="hljs-built_in">dict</span>(<span class="hljs-built_in">zip</span>(names, <span class="hljs-built_in">map</span>(<span class="hljs-built_in">float</span>, best))),<br>            <span class="hljs-string">&quot;totalCost&quot;</span>: <span class="hljs-built_in">float</span>(de.cost.<span class="hljs-built_in">min</span>()),<br>            <span class="hljs-string">&quot;initialCost&quot;</span>: <span class="hljs-built_in">float</span>(c0),<br>            <span class="hljs-string">&quot;lastEpoch&quot;</span>: epoch,<br>            <span class="hljs-string">&quot;reason&quot;</span>: reason,<br>            <span class="hljs-string">&quot;simulations&quot;</span>: ev.simulations,<br>            <span class="hljs-string">&quot;failedSimulations&quot;</span>: ev.failed,<br>            <span class="hljs-string">&quot;conditions&quot;</span>: conditions,<br>            <span class="hljs-string">&quot;warnings&quot;</span>: warnings,<br>            <span class="hljs-string">&quot;history&quot;</span>: history,<br>            <span class="hljs-string">&quot;elapsedSeconds&quot;</span>: <span class="hljs-built_in">round</span>(time.perf_counter() - started, <span class="hljs-number">2</span>),<br>            <span class="hljs-comment"># 复现指纹：最优参数与误差的二进制摘要，逐位一致时才相同</span><br>            <span class="hljs-string">&quot;fingerprint&quot;</span>: hashlib.sha256(best.tobytes() + de.cost.<span class="hljs-built_in">min</span>().tobytes()).hexdigest()[:<span class="hljs-number">16</span>],<br>        &#125;<br>    <span class="hljs-keyword">finally</span>:<br>        ev.close()<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">print_report</span>(<span class="hljs-params">result: <span class="hljs-built_in">dict</span></span>) -&gt; <span class="hljs-literal">None</span>:<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;\n========== 标定结果 ==========&quot;</span>)<br>    <span class="hljs-keyword">for</span> name, value <span class="hljs-keyword">in</span> result[<span class="hljs-string">&quot;parameters&quot;</span>].items():<br>        <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  <span class="hljs-subst">&#123;name:&lt;<span class="hljs-number">4</span>&#125;</span> = <span class="hljs-subst">&#123;value:<span class="hljs-number">.6</span>g&#125;</span>&quot;</span>)<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  总误差 J: <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;initialCost&#x27;</span>]:<span class="hljs-number">.6</span>e&#125;</span> -&gt; <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;totalCost&#x27;</span>]:<span class="hljs-number">.6</span>e&#125;</span>&quot;</span>)<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  结束原因: <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;reason&#x27;</span>]&#125;</span>，第 <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;lastEpoch&#x27;</span>]&#125;</span> 代，&quot;</span><br>          <span class="hljs-string">f&quot;仿真 <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;simulations&#x27;</span>]&#125;</span> 次（失败 <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;failedSimulations&#x27;</span>]&#125;</span> 次），&quot;</span><br>          <span class="hljs-string">f&quot;耗时 <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;elapsedSeconds&#x27;</span>]&#125;</span> s&quot;</span>)<br>    <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> result[<span class="hljs-string">&quot;conditions&quot;</span>]:<br>        <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  工况 <span class="hljs-subst">&#123;c[<span class="hljs-string">&#x27;id&#x27;</span>]:&lt;<span class="hljs-number">6</span>&#125;</span> E = <span class="hljs-subst">&#123;c[<span class="hljs-string">&#x27;cost&#x27;</span>]:<span class="hljs-number">.6</span>e&#125;</span>  达标: <span class="hljs-subst">&#123;c[<span class="hljs-string">&#x27;pass&#x27;</span>]&#125;</span>&quot;</span>)<br>        <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> c[<span class="hljs-string">&quot;pairs&quot;</span>]:<br>            <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;      <span class="hljs-subst">&#123;p[<span class="hljs-string">&#x27;output&#x27;</span>]&#125;</span> &lt;- <span class="hljs-subst">&#123;p[<span class="hljs-string">&#x27;column&#x27;</span>]:&lt;<span class="hljs-number">8</span>&#125;</span> RMSE = <span class="hljs-subst">&#123;p[<span class="hljs-string">&#x27;rmse&#x27;</span>]:<span class="hljs-number">.6</span>g&#125;</span>  达标: <span class="hljs-subst">&#123;p[<span class="hljs-string">&#x27;pass&#x27;</span>]&#125;</span>&quot;</span>)<br>    <span class="hljs-keyword">for</span> w <span class="hljs-keyword">in</span> result[<span class="hljs-string">&quot;warnings&quot;</span>]:<br>        <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  [告警] <span class="hljs-subst">&#123;w&#125;</span>&quot;</span>)<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  复现指纹: <span class="hljs-subst">&#123;result[<span class="hljs-string">&#x27;fingerprint&#x27;</span>]&#125;</span>&quot;</span>)<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:<br>    ap = argparse.ArgumentParser()<br>    ap.add_argument(<span class="hljs-string">&quot;--task&quot;</span>, default=<span class="hljs-string">&quot;task.json&quot;</span>)<br>    ap.add_argument(<span class="hljs-string">&quot;--workers&quot;</span>, <span class="hljs-built_in">type</span>=<span class="hljs-built_in">int</span>, default=<span class="hljs-number">1</span>)<br>    ap.add_argument(<span class="hljs-string">&quot;--seed&quot;</span>, <span class="hljs-built_in">type</span>=<span class="hljs-built_in">int</span>)<br>    ap.add_argument(<span class="hljs-string">&quot;--only&quot;</span>, nargs=<span class="hljs-string">&quot;*&quot;</span>, <span class="hljs-built_in">help</span>=<span class="hljs-string">&quot;只使用这些工况&quot;</span>)<br>    args = ap.parse_args()<br>    task_path = Path(args.task).resolve()<br>    task = json.loads(task_path.read_text(encoding=<span class="hljs-string">&quot;utf-8&quot;</span>))<br>    result = run_calibration(task, task_path.parent, workers=args.workers, seed=args.seed,<br>                             only=<span class="hljs-built_in">set</span>(args.only) <span class="hljs-keyword">if</span> args.only <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>)<br>    print_report(result)<br>    out = task_path.parent / <span class="hljs-string">&quot;result.json&quot;</span><br>    out.write_text(json.dumps(result, ensure_ascii=<span class="hljs-literal">False</span>, indent=<span class="hljs-number">2</span>), encoding=<span class="hljs-string">&quot;utf-8&quot;</span>)<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;  结果已写入 <span class="hljs-subst">&#123;out.name&#125;</span>&quot;</span>)<br><br><br><span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">&quot;__main__&quot;</span>:  <span class="hljs-comment"># Windows 以 spawn 方式启动 worker，必须有这个保护</span><br>    main()<br></code></pre></td></tr></table></figure>
+
+<h3 id="12-9-任务配置：task-json"><a href="#12-9-任务配置：task-json" class="headerlink" title="12.9 任务配置：task.json"></a>12.9 任务配置：task.json</h3><p class="code-caption" data-lang="json" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs json"><span class="hljs-punctuation">&#123;</span><br>  <span class="hljs-attr">&quot;parameters&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><br>    <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;k&quot;</span><span class="hljs-punctuation">,</span>  <span class="hljs-attr">&quot;initial&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;min&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5.0</span><span class="hljs-punctuation">,</span>  <span class="hljs-attr">&quot;max&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">100.0</span><span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;c&quot;</span><span class="hljs-punctuation">,</span>  <span class="hljs-attr">&quot;initial&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.5</span><span class="hljs-punctuation">,</span>  <span class="hljs-attr">&quot;min&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.05</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;max&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5.0</span><span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;k3&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;initial&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span>  <span class="hljs-attr">&quot;min&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span>  <span class="hljs-attr">&quot;max&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2000.0</span><span class="hljs-punctuation">&#125;</span><br>  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;conditions&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><br>    <span class="hljs-punctuation">&#123;</span><br>      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;small&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;file&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;data/small.csv&quot;</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;force&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;x0&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;stop&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10.0</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;pairs&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><br>        <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;output&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;x&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;disp_mm&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;scale&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.001</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span>    <span class="hljs-attr">&quot;weight&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;tolerance&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0005</span><span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>        <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;output&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;v&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vel&quot;</span><span class="hljs-punctuation">,</span>     <span class="hljs-attr">&quot;scale&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span>   <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span>    <span class="hljs-attr">&quot;weight&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;tolerance&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.01</span><span class="hljs-punctuation">&#125;</span><br>      <span class="hljs-punctuation">]</span><br>    <span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>    <span class="hljs-punctuation">&#123;</span><br>      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;large&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;file&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;data/large.csv&quot;</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;force&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;x0&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;stop&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10.0</span><span class="hljs-punctuation">,</span><br>      <span class="hljs-attr">&quot;pairs&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><br>        <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;output&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;x&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;disp_mm&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;scale&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.001</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">-0.005</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;weight&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;tolerance&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0005</span><span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>        <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;output&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;v&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;vel&quot;</span><span class="hljs-punctuation">,</span>     <span class="hljs-attr">&quot;scale&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span>   <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.0</span><span class="hljs-punctuation">,</span>    <span class="hljs-attr">&quot;weight&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1.0</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;tolerance&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.01</span><span class="hljs-punctuation">&#125;</span><br>      <span class="hljs-punctuation">]</span><br>    <span class="hljs-punctuation">&#125;</span><br>  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;algorithm&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;epoch&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">100</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;popSize&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;wf&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.7</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;cr&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.9</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;strategy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;current_to_rand&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;seed&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">42</span><span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;earlyStop&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span><span class="hljs-attr">&quot;minEpoch&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;rtol&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1e-4</span><span class="hljs-punctuation">&#125;</span><span class="hljs-punctuation">,</span><br>  <span class="hljs-attr">&quot;boundHitRatio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.01</span><br><span class="hljs-punctuation">&#125;</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="12-10-交叉核对：compare-scipy-py"><a href="#12-10-交叉核对：compare-scipy-py" class="headerlink" title="12.10 交叉核对：compare_scipy.py"></a>12.10 交叉核对：compare_scipy.py</h3><p class="code-caption" data-lang="python" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-string">&quot;&quot;&quot;用 scipy.optimize.differential_evolution 求解同一个目标函数，交叉核对自研实现的结果。&quot;&quot;&quot;</span><br><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations<br><br><span class="hljs-keyword">import</span> json<br><span class="hljs-keyword">import</span> math<br><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path<br><br><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><span class="hljs-keyword">from</span> scipy.optimize <span class="hljs-keyword">import</span> differential_evolution<br><br><span class="hljs-keyword">import</span> objective<br><br><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">TotalCost</span>:<br>    <span class="hljs-string">&quot;&quot;&quot;可 pickle 的目标函数，workers &gt; 1 时 scipy 会把它发给子进程。&quot;&quot;&quot;</span><br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, scenarios, names</span>):<br>        <span class="hljs-variable language_">self</span>.scenarios, <span class="hljs-variable language_">self</span>.names = scenarios, names<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__call__</span>(<span class="hljs-params">self, x</span>):<br>        costs = [objective.run_job(<span class="hljs-variable language_">self</span>.names, x, s)[<span class="hljs-number">0</span>] <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.scenarios]<br>        <span class="hljs-keyword">return</span> math.inf <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(math.isinf(c) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> costs) <span class="hljs-keyword">else</span> objective.total_cost(costs)<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:<br>    base = Path(__file__).parent<br>    task = json.loads((base / <span class="hljs-string">&quot;task.json&quot;</span>).read_text(encoding=<span class="hljs-string">&quot;utf-8&quot;</span>))<br>    names = [p[<span class="hljs-string">&quot;name&quot;</span>] <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]]<br>    bounds = [(p[<span class="hljs-string">&quot;min&quot;</span>], p[<span class="hljs-string">&quot;max&quot;</span>]) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]]<br>    x0 = [p[<span class="hljs-string">&quot;initial&quot;</span>] <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> task[<span class="hljs-string">&quot;parameters&quot;</span>]]<br>    f = TotalCost(objective.build_scenarios(task, base), names)<br>    res = differential_evolution(<br>        f, bounds, strategy=<span class="hljs-string">&quot;currenttobest1bin&quot;</span>, popsize=<span class="hljs-number">7</span>, maxiter=<span class="hljs-number">100</span>, mutation=<span class="hljs-number">0.7</span>, recombination=<span class="hljs-number">0.9</span>,<br>        rng=<span class="hljs-number">42</span>, init=<span class="hljs-string">&quot;sobol&quot;</span>, x0=x0, tol=<span class="hljs-number">1e-4</span>, polish=<span class="hljs-literal">False</span>, updating=<span class="hljs-string">&quot;deferred&quot;</span>, workers=<span class="hljs-number">4</span>)<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;scipy DE:&quot;</span>, &#123;n: <span class="hljs-built_in">round</span>(<span class="hljs-built_in">float</span>(v), <span class="hljs-number">4</span>) <span class="hljs-keyword">for</span> n, v <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(names, res.x)&#125;, <span class="hljs-string">f&quot;J = <span class="hljs-subst">&#123;res.fun:<span class="hljs-number">.6</span>e&#125;</span>&quot;</span>,<br>          <span class="hljs-string">f&quot;迭代 <span class="hljs-subst">&#123;res.nit&#125;</span> 代，目标函数调用 <span class="hljs-subst">&#123;res.nfev&#125;</span> 次&quot;</span>)<br>    ours = json.loads((base / <span class="hljs-string">&quot;result.json&quot;</span>).read_text(encoding=<span class="hljs-string">&quot;utf-8&quot;</span>))<br>    <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;本文实现:&quot;</span>, &#123;k: <span class="hljs-built_in">round</span>(v, <span class="hljs-number">4</span>) <span class="hljs-keyword">for</span> k, v <span class="hljs-keyword">in</span> ours[<span class="hljs-string">&quot;parameters&quot;</span>].items()&#125;, <span class="hljs-string">f&quot;J = <span class="hljs-subst">&#123;ours[<span class="hljs-string">&#x27;totalCost&#x27;</span>]:<span class="hljs-number">.6</span>e&#125;</span>&quot;</span>)<br><br><br><span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">&quot;__main__&quot;</span>:<br>    main()<br></code></pre></td></tr></table></figure>
+
+<h3 id="12-11-运行步骤与输出"><a href="#12-11-运行步骤与输出" class="headerlink" title="12.11 运行步骤与输出"></a>12.11 运行步骤与输出</h3><p>创建虚拟环境并安装依赖：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash">python -m venv .venv<br><span class="hljs-built_in">source</span> .venv/bin/activate        <span class="hljs-comment"># Windows 使用 .venv\Scripts\activate</span><br>pip install -r requirements.txt<br></code></pre></td></tr></table></figure>
+
+<p>生成合成数据：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">python make_data.py<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs text">small: 501 行，峰值位移 44.35 mm -&gt; data/small.csv<br>large: 501 行，峰值位移 378.66 mm -&gt; data/large.csv<br>&lt;p class=&quot;code-caption&quot; data-lang=&quot;&quot; data-line_number=&quot;frontend&quot; data-trim_indent=&quot;backend&quot; data-label_position=&quot;outer&quot; data-labels_left=&quot;Code&quot; data-labels_right=&quot;:&quot; data-labels_copy=&quot;&quot;&gt;&lt;span class=&quot;code-caption-label&quot;&gt;&lt;/span&gt;&lt;a class=&quot;code-caption-copy&quot;&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>以 4 个 worker 运行标定：<br><br>```bash<br>python calibrate.py --workers 4<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><code class="hljs text">[initial]   J0 = 7.122279e-01<br>[presearch] 256 个采样点，第 0 代最优 J = 4.763763e-03<br>[evolve]    epoch   1  best J = 4.396630e-03  仿真 554 次<br>[evolve]    epoch  10  best J = 1.257219e-05  仿真 914 次<br>[evolve]    epoch  20  best J = 1.257219e-05  仿真 1314 次<br>[evolve]    epoch  30  best J = 1.257219e-05  仿真 1714 次<br>[evolve]    epoch  40  best J = 1.250733e-05  仿真 2114 次<br>[evolve]    epoch  50  best J = 1.250278e-05  仿真 2514 次<br>[evolve]    epoch  52  种群误差相对离散度小于 0.0001，提前结束<br><br>========== 标定结果 ==========<br>  k    = 40.0297<br>  c    = 1.19946<br>  k3   = 800.25<br>  总误差 J: 7.122279e-01 -&gt; 1.250264e-05<br>  结束原因: earlyStop，第 52 代，仿真 2594 次（失败 0 次），耗时 71.24 s<br>  工况 small  E = 1.275802e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.000212472  达标: True<br>      v &lt;- vel      RMSE = 0.00504687  达标: True<br>  工况 large  E = 1.224725e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.000200036  达标: True<br>      v &lt;- vel      RMSE = 0.00494515  达标: True<br>  复现指纹: 66e01a3e29d67fbe<br>  结果已写入 result.json<br>&lt;p class=&quot;code-caption&quot; data-lang=&quot;&quot; data-line_number=&quot;frontend&quot; data-trim_indent=&quot;backend&quot; data-label_position=&quot;outer&quot; data-labels_left=&quot;Code&quot; data-labels_right=&quot;:&quot; data-labels_copy=&quot;&quot;&gt;&lt;span class=&quot;code-caption-label&quot;&gt;&lt;/span&gt;&lt;a class=&quot;code-caption-copy&quot;&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>输出中的几个数值值得逐项解读：<br><br>- **总误差下降到噪声水平**。理论上，若模型与真值完全一致，残差只剩测量噪声，每个工况的误差约为 `(σ_x² + σ_v²)/2 = (0.0002² + 0.005²)/2 ≈ 1.25e-5`。标定得到的 J = 1.2503×10⁻⁵ 与此吻合，各配对 RMSE 也分别接近 0.2 mm 和 0.005 m/s。总误差达到噪声水平，说明模型已解释了数据中除噪声以外的全部成分，这是判断标定是否充分的一个实用标准。<br>- **参数相对误差在 0.1% 以内**。`k`、`c`、`k3` 的相对误差分别约为 0.07%、0.04%、0.03%。残余偏差来自测量噪声：标定结果的总误差略低于真值处的总误差（1.25247×10⁻⁵），即优化器拟合了一部分噪声，这是有限样本下最小二乘估计的正常现象。<br>- **早停生效**。第 52 代种群离散度降到 10⁻⁴ 以下，提前结束，共仿真 2594 次。<br><br>### 12.12 实验一：复现性<br><br>以 1 个 worker 重新运行：<br><br>```bash<br>python calibrate.py --workers 1<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><code class="hljs text">[initial]   J0 = 7.122279e-01<br>[presearch] 256 个采样点，第 0 代最优 J = 4.763763e-03<br>[evolve]    epoch   1  best J = 4.396630e-03  仿真 554 次<br>[evolve]    epoch  10  best J = 1.257219e-05  仿真 914 次<br>[evolve]    epoch  20  best J = 1.257219e-05  仿真 1314 次<br>[evolve]    epoch  30  best J = 1.257219e-05  仿真 1714 次<br>[evolve]    epoch  40  best J = 1.250733e-05  仿真 2114 次<br>[evolve]    epoch  50  best J = 1.250278e-05  仿真 2514 次<br>[evolve]    epoch  52  种群误差相对离散度小于 0.0001，提前结束<br><br>========== 标定结果 ==========<br>  k    = 40.0297<br>  c    = 1.19946<br>  k3   = 800.25<br>  总误差 J: 7.122279e-01 -&gt; 1.250264e-05<br>  结束原因: earlyStop，第 52 代，仿真 2594 次（失败 0 次），耗时 164.58 s<br>  工况 small  E = 1.275802e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.000212472  达标: True<br>      v &lt;- vel      RMSE = 0.00504687  达标: True<br>  工况 large  E = 1.224725e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.000200036  达标: True<br>      v &lt;- vel      RMSE = 0.00494515  达标: True<br>  复现指纹: 66e01a3e29d67fbe<br>  结果已写入 result.json<br>&lt;p class=&quot;code-caption&quot; data-lang=&quot;&quot; data-line_number=&quot;frontend&quot; data-trim_indent=&quot;backend&quot; data-label_position=&quot;outer&quot; data-labels_left=&quot;Code&quot; data-labels_right=&quot;:&quot; data-labels_copy=&quot;&quot;&gt;&lt;span class=&quot;code-caption-label&quot;&gt;&lt;/span&gt;&lt;a class=&quot;code-caption-copy&quot;&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>两次运行的 worker 数不同，耗时分别为 164.58 s 和 71.24 s，而最优参数、各工况误差与复现指纹 `66e01a3e29d67fbe` 完全相同。并行只改变计算速度，不改变计算结果。<br><br>4 个 worker 的加速比约为 2.3，低于理想值 4。主要原因有三：Windows 以 spawn 方式启动进程的固定开销；主进程与 worker 之间的参数序列化开销；同步批量更新在每一代末尾需要等待全部作业完成，一代中最慢的作业决定该代的耗时。单次仿真耗时越长、种群越大，这些开销所占比例越低。<br><br>### 12.13 实验二：与 scipy 交叉核对<br><br>```bash<br>python compare_scipy.py<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs text">scipy DE: &#123;&#x27;k&#x27;: 40.0279, &#x27;c&#x27;: 1.1994, &#x27;k3&#x27;: 800.2385&#125; J = 1.250247e-05 迭代 44 代，目标函数调用 1440 次<br>本文实现: &#123;&#x27;k&#x27;: 40.0297, &#x27;c&#x27;: 1.1995, &#x27;k3&#x27;: 800.2496&#125; J = 1.250264e-05<br>&lt;p class=&quot;code-caption&quot; data-lang=&quot;&quot; data-line_number=&quot;frontend&quot; data-trim_indent=&quot;backend&quot; data-label_position=&quot;outer&quot; data-labels_left=&quot;Code&quot; data-labels_right=&quot;:&quot; data-labels_copy=&quot;&quot;&gt;&lt;span class=&quot;code-caption-label&quot;&gt;&lt;/span&gt;&lt;a class=&quot;code-caption-copy&quot;&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>scipy 使用的是 current-to-best/1 策略与随机重置的越界处理，搜索路径与本文实现不同，因此不追求逐位一致。两者的参数在前 4 位有效数字上一致，总误差在前 5 位有效数字上一致（1.2502×10⁻⁵），说明两种实现收敛到同一极小点，自研实现没有系统性偏差。<br><br>两者第 6 位的差异来自早停阈值：本文实现在种群离散度降到 10⁻⁴ 时停止，此时最优误差距离极小值还有约 1.4×10⁻⁵ 的相对差距。第十节关闭早停的实验中，第 80 代的最优误差为 1.2502472×10⁻⁵，与 scipy 的结果一致。需要更高精度时，可以收紧 `rtol` 或在 DE 之后接局部精修。<br><br>### 12.14 实验三：工况设计与参数可辨识性<br><br>只使用 small 工况标定：<br><br>```bash<br>python calibrate.py --workers 4 --only small<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><code class="hljs text">[initial]   J0 = 3.204955e-03<br>[presearch] 256 个采样点，第 0 代最优 J = 1.331794e-05<br>[evolve]    epoch   1  best J = 1.331794e-05  仿真 277 次<br>[evolve]    epoch  10  best J = 1.304352e-05  仿真 457 次<br>[evolve]    epoch  20  best J = 1.274094e-05  仿真 657 次<br>[evolve]    epoch  30  best J = 1.271190e-05  仿真 857 次<br>[evolve]    epoch  37  种群误差相对离散度小于 0.0001，提前结束<br><br>========== 标定结果 ==========<br>  k    = 39.5319<br>  c    = 1.21523<br>  k3   = 1041.48<br>  总误差 J: 3.204955e-03 -&gt; 1.271051e-05<br>  结束原因: earlyStop，第 37 代，仿真 997 次（失败 0 次），耗时 45.09 s<br>  工况 small  E = 1.271051e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.000272986  达标: True<br>      v &lt;- vel      RMSE = 0.00503453  达标: True<br>  复现指纹: c407af93940e7181<br>  结果已写入 result.json<br>&lt;p class=&quot;code-caption&quot; data-lang=&quot;&quot; data-line_number=&quot;frontend&quot; data-trim_indent=&quot;backend&quot; data-label_position=&quot;outer&quot; data-labels_left=&quot;Code&quot; data-labels_right=&quot;:&quot; data-labels_copy=&quot;&quot;&gt;&lt;span class=&quot;code-caption-label&quot;&gt;&lt;/span&gt;&lt;a class=&quot;code-caption-copy&quot;&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>只使用 small 工况时，总误差同样下降到噪声水平（1.271×10⁻⁵），两个配对均达标，但 k3 = 1041.48，偏离真值 800 约 30%。<br><br>原因在于小外力下位移峰值仅约 44 mm，峰值处立方项与线性项之比 `k3·x²/k ≈ 800 × 0.044² / 40 ≈ 4%`，且大部分时刻的位移小于峰值。`k3` 在较大范围内变化对曲线的影响与测量噪声处于同一量级，数据不足以确定它。这是参数不可辨识的典型表现：误差很小、全部达标，参数却不正确。达标判定只能说明曲线吻合，不能说明参数正确。<br><br>加入 large 工况后，峰值处立方项与线性项之比达到约 287%，`k3` 的作用被充分激发，其相对误差从 30% 缩小到 0.03%。工况设计的目标不是增加数据量，而是使每个待标定参数都至少在一个工况中对输出产生显著影响。<br><br>### 12.15 实验四：更换随机种子<br><br>```bash<br>python calibrate.py --workers 4 --seed 7<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs text">[initial]   J0 = 7.122279e-01<br>[presearch] 256 个采样点，第 0 代最优 J = 3.087080e-03<br>[evolve]    epoch   1  best J = 3.087080e-03  仿真 554 次<br>[evolve]    epoch  10  best J = 4.002172e-04  仿真 914 次<br>[evolve]    epoch  20  best J = 1.880140e-05  仿真 1314 次<br>[evolve]    epoch  30  best J = 1.257703e-05  仿真 1714 次<br>[evolve]    epoch  40  best J = 1.251419e-05  仿真 2114 次<br>[evolve]    epoch  50  best J = 1.250282e-05  仿真 2514 次<br>[evolve]    epoch  54  种群误差相对离散度小于 0.0001，提前结束<br><br>========== 标定结果 ==========<br>  k    = 40.0249<br>  c    = 1.19933<br>  k3   = 800.229<br>  总误差 J: 7.122279e-01 -&gt; 1.250282e-05<br>  结束原因: earlyStop，第 54 代，仿真 2674 次（失败 0 次），耗时 100.1 s<br>  工况 small  E = 1.275783e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.000211765  达标: True<br>      v &lt;- vel      RMSE = 0.00504686  达标: True<br>  工况 large  E = 1.224782e-05  达标: True<br>      x &lt;- disp_mm  RMSE = 0.00019863  达标: True<br>      v &lt;- vel      RMSE = 0.00494532  达标: True<br>  复现指纹: b71e559ac6007327<br>  结果已写入 result.json<br></code></pre></td></tr></table></figure>
+
+<p>更换种子后搜索路径不同：第 10 代的最优误差为 4.0×10⁻⁴，而种子 42 在同一代已达到 1.26×10⁻⁵。标定最终在第 54 代早停，得到 k &#x3D; 40.0249、c &#x3D; 1.19933、k3 &#x3D; 800.229，与种子 42 的结果在前 4 位有效数字上一致，复现指纹不同。</p>
+<p>种子改变的是搜索路径。在参数可辨识、误差曲面极小点唯一的前提下，不同种子应收敛到同一极小点，残余差异由早停阈值决定。用多个种子重复标定并比较结果的离散程度，是检验标定结果可靠性的有效手段：若不同种子给出误差相近而参数差异很大的结果，说明存在不可辨识的参数组合。</p>
+<h2 id="十三、常见问题与排查"><a href="#十三、常见问题与排查" class="headerlink" title="十三、常见问题与排查"></a>十三、常见问题与排查</h2><table>
+<thead>
+<tr>
+<th>现象</th>
+<th>可能原因</th>
+<th>排查与处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>初值阶段即失败</td>
+<td>参数名与模型不一致；激励缺失；初值超出物理可行域</td>
+<td>单独以初值运行一次仿真，检查求解器报错信息</td>
+</tr>
+<tr>
+<td>参数收敛到边界并出现告警</td>
+<td>边界过窄；模型结构缺失某一物理效应；实测存在系统偏差</td>
+<td>放宽边界重新标定；若参数随边界移动，说明该参数在补偿模型缺陷</td>
+</tr>
+<tr>
+<td>总误差远高于噪声水平且无法下降</td>
+<td>模型结构不足；单位或零点换算错误；时间轴未对齐</td>
+<td>叠加绘制仿真与目标曲线，观察残差是否呈系统性形态</td>
+</tr>
+<tr>
+<td>某一信号的拟合明显较差</td>
+<td>各配对 RMSE² 量级相差悬殊，小量级信号的权重被淹没</td>
+<td>按 <code>w_i ∝ 1/σ_i²</code> 设置权重，<code>σ_i</code> 为该信号的噪声水平或允许误差</td>
+</tr>
+<tr>
+<td>不同种子得到差异较大的参数，但误差相近</td>
+<td>参数不可辨识：数据不足以区分参数的不同组合</td>
+<td>增加能激发该参数作用的工况；或固定其中一个参数</td>
+</tr>
+<tr>
+<td>早停过早，结果随最大代数变化</td>
+<td>使用了「最优误差停滞」判据</td>
+<td>改用种群离散度判据，并设置 <code>minEpoch</code></td>
+</tr>
+<tr>
+<td>末段收敛缓慢，最优误差小幅震荡</td>
+<td>积分容差过松，误差曲面带有数值噪声</td>
+<td>收紧求解器容差，使积分误差至少比测量噪声小两个数量级</td>
+</tr>
+<tr>
+<td>大量仿真失败</td>
+<td>参数边界包含不可仿真区域</td>
+<td>失败本身不影响结果；若失败比例过高，应收窄边界以免浪费计算预算</td>
+</tr>
+<tr>
+<td>同一配置两次运行结果不同</td>
+<td>使用了异步更新；结果按完成顺序写回；多个随机数生成器；算法逻辑依赖时间</td>
+<td>对照第十一节的不确定性来源逐项检查</td>
+</tr>
+<tr>
+<td>Windows 上进程数异常增长或程序挂起</td>
+<td>入口缺少 <code>if __name__ == &quot;__main__&quot;:</code> 保护</td>
+<td>补上入口保护</td>
+</tr>
+</tbody></table>
+<p>关于权重，演示案例本身就是一个例子。位移 RMSE² 约为 4×10⁻⁸，速度 RMSE² 约为 2.5×10⁻⁵，两者相差约 600 倍，等权重下总误差几乎完全由速度决定。在本例中位移与速度来自同一运动、信息一致，因此标定结果不受影响；但若两者分别反映不同的物理过程，小量级信号就会被忽略。按 <code>1/σ²</code> 设置权重等价于加权最小二乘，在高斯噪声假设下对应极大似然估计。</p>
+<h2 id="十四、方案选择"><a href="#十四、方案选择" class="headerlink" title="十四、方案选择"></a>十四、方案选择</h2><table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>参数 2～20 个，范围宽，可能多峰，单次仿真秒级</td>
+<td>本文方案：Sobol 预搜索 + 同步批量 DE</td>
+</tr>
+<tr>
+<td>初值可信，只需在附近精修</td>
+<td>TRF &#x2F; LM 局部最小二乘</td>
+</tr>
+<tr>
+<td>需要全局性与高精度</td>
+<td>DE 收敛后接 TRF &#x2F; LM 局部精修</td>
+</tr>
+<tr>
+<td>单次仿真耗时分钟级，预算仅数百次</td>
+<td>贝叶斯优化或代理模型辅助优化</td>
+</tr>
+<tr>
+<td>需要参数的不确定度区间</td>
+<td>在最优点计算 Jacobian 近似协方差，或采用 MCMC 等贝叶斯方法</td>
+</tr>
+</tbody></table>
+<h2 id="十五、实践要点"><a href="#十五、实践要点" class="headerlink" title="十五、实践要点"></a>十五、实践要点</h2><ol>
+<li>目标函数先于算法确定。缩放、偏移、权重、比较窗口、容差的含义写成明确的公式，并在代码中只保留一套实现。</li>
+<li>容差只用于达标判定，不写入目标函数。</li>
+<li>仿真接口以返回值表达失败，失败映射为 <code>J = +∞</code>；NaN 同样视为失败；初值失败则任务失败。</li>
+<li>仿真器直接在实测时刻输出，避免插值误差。</li>
+<li>初值放入初始种群，保证标定结果不劣于初值。</li>
+<li>采用同步批量更新，并按编号写回评估结果，使并行与复现同时成立。</li>
+<li>早停使用种群离散度判据，不使用最优误差停滞判据。</li>
+<li>超时只在代与代之间检查。</li>
+<li>积分误差至少比测量噪声小两个数量级。</li>
+<li>工况设计以参数可辨识为目标：每个待标定参数都应有至少一个工况能显著激发其作用。</li>
+<li>收尾时检查参数是否贴近边界，检查总误差是否接近噪声水平。</li>
+<li>输出复现指纹，把「同一输入结果逐位一致」作为回归测试的一部分。</li>
+</ol>
+<h2 id="附录-A：task-json-字段说明"><a href="#附录-A：task-json-字段说明" class="headerlink" title="附录 A：task.json 字段说明"></a>附录 A：task.json 字段说明</h2><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>parameters[].name</code></td>
+<td>string</td>
+<td>参数名，与模型参数一致</td>
+</tr>
+<tr>
+<td><code>parameters[].initial</code></td>
+<td>number</td>
+<td>初值，必须位于边界内且能仿真</td>
+</tr>
+<tr>
+<td><code>parameters[].min</code> &#x2F; <code>max</code></td>
+<td>number</td>
+<td>搜索边界</td>
+</tr>
+<tr>
+<td><code>conditions[].id</code></td>
+<td>string</td>
+<td>工况标识</td>
+</tr>
+<tr>
+<td><code>conditions[].file</code></td>
+<td>string</td>
+<td>实测 CSV 路径，相对于 task.json</td>
+</tr>
+<tr>
+<td><code>conditions[].force</code> &#x2F; <code>x0</code></td>
+<td>number</td>
+<td>本工况的激励与初始条件（模型相关）</td>
+</tr>
+<tr>
+<td><code>conditions[].start</code> &#x2F; <code>stop</code></td>
+<td>number</td>
+<td>仿真区间，同时作为比较窗口</td>
+</tr>
+<tr>
+<td><code>pairs[].output</code></td>
+<td>string</td>
+<td>模型输出名</td>
+</tr>
+<tr>
+<td><code>pairs[].column</code></td>
+<td>string</td>
+<td>实测列名</td>
+</tr>
+<tr>
+<td><code>pairs[].scale</code> &#x2F; <code>offset</code></td>
+<td>number</td>
+<td>目标值 &#x3D; 实测 × scale + offset</td>
+</tr>
+<tr>
+<td><code>pairs[].weight</code></td>
+<td>number</td>
+<td>配对权重，只有相对大小有意义</td>
+</tr>
+<tr>
+<td><code>pairs[].tolerance</code></td>
+<td>number | null</td>
+<td>RMSE 上限，只用于达标判定</td>
+</tr>
+<tr>
+<td><code>algorithm.epoch</code></td>
+<td>int</td>
+<td>最大代数</td>
+</tr>
+<tr>
+<td><code>algorithm.popSize</code></td>
+<td>int</td>
+<td>种群规模，常取参数个数的 5～10 倍，不少于 10</td>
+</tr>
+<tr>
+<td><code>algorithm.wf</code></td>
+<td>number</td>
+<td>缩放因子 <code>F</code></td>
+</tr>
+<tr>
+<td><code>algorithm.cr</code></td>
+<td>number</td>
+<td>交叉概率 <code>CR</code></td>
+</tr>
+<tr>
+<td><code>algorithm.strategy</code></td>
+<td>string</td>
+<td><code>rand_1</code>、<code>best_1</code> 或 <code>current_to_rand</code></td>
+</tr>
+<tr>
+<td><code>algorithm.seed</code></td>
+<td>int</td>
+<td>随机种子</td>
+</tr>
+<tr>
+<td><code>earlyStop.minEpoch</code></td>
+<td>int</td>
+<td>早停的最少代数</td>
+</tr>
+<tr>
+<td><code>earlyStop.rtol</code></td>
+<td>number</td>
+<td>种群误差相对离散度阈值</td>
+</tr>
+<tr>
+<td><code>boundHitRatio</code></td>
+<td>number</td>
+<td>接近边界告警的阈值，占区间宽度的比例</td>
+</tr>
+</tbody></table>
+<h2 id="附录-B：公式速查"><a href="#附录-B：公式速查" class="headerlink" title="附录 B：公式速查"></a>附录 B：公式速查</h2><table>
+<thead>
+<tr>
+<th>量</th>
+<th>公式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>目标值</td>
+<td><code>y_target = s · y_meas + b</code></td>
+</tr>
+<tr>
+<td>配对 RMSE</td>
+<td><code>sqrt( Σ_k (y_sim,k − y_target,k)² / N )</code></td>
+</tr>
+<tr>
+<td>工况误差</td>
+<td><code>E_c = Σ_i w_i·RMSE_i² / Σ_i w_i</code></td>
+</tr>
+<tr>
+<td>总误差</td>
+<td><code>J = (1/M) · Σ_c E_c</code></td>
+</tr>
+<tr>
+<td>达标</td>
+<td><code>RMSE_i ≤ τ_i</code></td>
+</tr>
+<tr>
+<td>早停</td>
+<td><code>std(J) ≤ r_tol · abs(mean(J))</code> 且 <code>g ≥ g_min</code></td>
+</tr>
+<tr>
+<td>接近边界</td>
+<td><code>θ_j − l_j &lt; ρ·(u_j − l_j)</code> 或 <code>u_j − θ_j &lt; ρ·(u_j − l_j)</code></td>
+</tr>
+<tr>
+<td>预搜索点数</td>
+<td><code>S = max(256, 10n)</code></td>
+</tr>
+</tbody></table>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li>R. Storn, K. Price. Differential Evolution – A Simple and Efficient Heuristic for Global Optimization over Continuous Spaces. <em>Journal of Global Optimization</em>, 1997, 11: 341–359.</li>
+<li>SciPy <code>differential_evolution</code> 文档：<a target="_blank" rel="noopener" href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html">https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html</a></li>
+<li>SciPy <code>qmc.Sobol</code> 文档：<a target="_blank" rel="noopener" href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.qmc.Sobol.html">https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.qmc.Sobol.html</a></li>
+<li>SciPy <code>solve_ivp</code> 文档：<a target="_blank" rel="noopener" href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html">https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html</a></li>
+<li>FMI 标准：<a target="_blank" rel="noopener" href="https://fmi-standard.org/">https://fmi-standard.org/</a></li>
+</ul>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/%E4%BB%BF%E7%9C%9F%E5%BB%BA%E6%A8%A1/" class="category-chain-item">仿真建模</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/%E4%BB%BF%E7%9C%9F/" class="print-no-link">#仿真</a>
+      
+        <a href="../../../../../tags/Python/" class="print-no-link">#Python</a>
+      
+        <a href="../../../../../tags/%E5%8F%82%E6%95%B0%E6%A0%87%E5%AE%9A/" class="print-no-link">#参数标定</a>
+      
+        <a href="../../../../../tags/%E5%B7%AE%E5%88%86%E8%BF%9B%E5%8C%96/" class="print-no-link">#差分进化</a>
+      
+        <a href="../../../../../tags/%E4%BC%98%E5%8C%96%E7%AE%97%E6%B3%95/" class="print-no-link">#优化算法</a>
+      
+        <a href="../../../../../tags/%E6%95%B0%E5%80%BC%E8%AE%A1%E7%AE%97/" class="print-no-link">#数值计算</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估</div>
+      <div>http://example.com/2026/11/16/fmi/model-parameter-calibration-de/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年11月16日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../07/windows/windows-change-mac-address/" title="Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本">
+                        <span class="hidden-mobile">Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

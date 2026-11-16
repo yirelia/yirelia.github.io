@@ -1,0 +1,1219 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="排查网络问题时，ipconfig &#x2F;all 里出现了一个陌生的物理地址，比如 52-5A-65-xx-xx-xx。它不像任何厂商的前缀，也想不起来是哪张网卡。再深挖一步，会发现某张网卡当前用的 MAC 根本不是出厂值，而是被人（或者某个软件）改过的。 这类问题背后有几个容易混淆的事实：MAC 地址不是”写死”的，Windows 允许驱动用一个注册表值覆盖出厂地址；有线网卡和无线网卡对新地址的限制不">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本">
+<meta property="og:url" content="http://example.com/2026/11/07/windows/windows-change-mac-address/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="排查网络问题时，ipconfig &#x2F;all 里出现了一个陌生的物理地址，比如 52-5A-65-xx-xx-xx。它不像任何厂商的前缀，也想不起来是哪张网卡。再深挖一步，会发现某张网卡当前用的 MAC 根本不是出厂值，而是被人（或者某个软件）改过的。 这类问题背后有几个容易混淆的事实：MAC 地址不是”写死”的，Windows 允许驱动用一个注册表值覆盖出厂地址；有线网卡和无线网卡对新地址的限制不">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-11-07T09:44:05.000Z">
+<meta property="article:modified_time" content="2026-11-07T10:07:02.437Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="Windows">
+<meta property="article:tag" content="MAC地址">
+<meta property="article:tag" content="网卡">
+<meta property="article:tag" content="PowerShell">
+<meta property="article:tag" content="注册表">
+<meta property="article:tag" content="NDIS">
+<meta property="article:tag" content="网络">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本 - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-11-07 17:44" pubdate>
+          2026年11月7日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          7k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          59 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <p>排查网络问题时，<code>ipconfig /all</code> 里出现了一个陌生的物理地址，比如 <code>52-5A-65-xx-xx-xx</code>。它不像任何厂商的前缀，也想不起来是哪张网卡。再深挖一步，会发现某张网卡当前用的 MAC 根本不是出厂值，而是被人（或者某个软件）改过的。</p>
+<p>这类问题背后有几个容易混淆的事实：MAC 地址不是”写死”的，Windows 允许驱动用一个注册表值覆盖出厂地址；有线网卡和无线网卡对新地址的限制不一样；PowerShell 的几个 cmdlet 在参数设计上并不对称。另外，常有人问”TeamViewer 是怎么改 MAC 的”，答案是它根本不改，只读。</p>
+<p>本文从 MAC 地址的位结构讲起，梳理 Windows 网络栈中 MAC 覆盖的实际机制，然后给出一个可直接使用的 PowerShell 脚本，最后整理排错过程中踩过的坑。读完之后，你应该能：</p>
+<ul>
+<li>根据一个 MAC 地址反查到它属于本机哪张网卡，并判断它是不是被改过的；</li>
+<li>理解”网络地址 &#x2F; Locally Administered Address”这个设置在驱动层到底做了什么；</li>
+<li>用三种方式（图形界面、PowerShell、注册表）安全地修改和恢复 MAC；</li>
+<li>避开地址格式、调用方式、脚本编码等常见陷阱。</li>
+</ul>
+<span id="more"></span>
+
+<h2 id="一、MAC-地址的位结构"><a href="#一、MAC-地址的位结构" class="headerlink" title="一、MAC 地址的位结构"></a>一、MAC 地址的位结构</h2><p>MAC 地址（EUI-48）是 48 位、6 个字节，通常写成 12 位十六进制。前 3 字节是 OUI（组织唯一标识符），由 IEEE 分配给厂商；后 3 字节由厂商自行分配。</p>
+<p>真正决定”这个地址能不能用”的，是<strong>第一个字节的最低两位</strong>：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">第 1 字节（8 位）                        第 2~3 字节        第 4~6 字节<br> ┌───┬───┬───┬───┬───┬───┬───┬───┐<br> │ b7│ b6│ b5│ b4│ b3│ b2│ b1│ b0│      OUI 剩余部分        厂商自分配<br> └───┴───┴───┴───┴───┴───┴───┴───┘<br>                         │   │<br>                         │   └── I/G 位：0 = 单播，1 = 组播<br>                         └────── U/L 位：0 = 全球唯一（厂商烧录），1 = 本地管理<br></code></pre></td></tr></table></figure>
+
+<p>这两位落在第一个字节的<strong>低 4 位</strong>里，也就是十六进制写法中的<strong>第 2 个字符</strong>。所以只看第 2 位就能判断地址类型：</p>
+<table>
+<thead>
+<tr>
+<th>第 2 位</th>
+<th>二进制</th>
+<th>I&#x2F;G（b0）</th>
+<th>U&#x2F;L（b1）</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0、4、8、C</td>
+<td>xx00</td>
+<td>0 单播</td>
+<td>0 全球</td>
+<td>厂商出厂的单播地址</td>
+</tr>
+<tr>
+<td>2、6、A、E</td>
+<td>xx10</td>
+<td>0 单播</td>
+<td>1 本地</td>
+<td>本地管理的单播地址（手动设置、随机 MAC）</td>
+</tr>
+<tr>
+<td>1、5、9、D</td>
+<td>xx01</td>
+<td>1 组播</td>
+<td>0 全球</td>
+<td>组播地址，网卡不能用作自身地址</td>
+</tr>
+<tr>
+<td>3、7、B、F</td>
+<td>xx11</td>
+<td>1 组播</td>
+<td>1 本地</td>
+<td>组播地址，同样不能用</td>
+</tr>
+</tbody></table>
+<p>几个实际例子：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">00-1B-21-xx-xx-xx   第 2 位 0 → 厂商出厂地址（Intel 的 OUI）<br>52-5A-65-xx-xx-xx   第 2 位 2 → 本地管理地址，出现在物理网卡上时多半是被改过的<br>F6-12-34-xx-xx-xx   第 2 位 6 → 本地管理地址（Wi-Fi Direct 虚拟网卡常把 WLAN 地址 F4-12-34-… 的 U/L 位置 1 得到）<br>01-00-5E-xx-xx-xx   第 2 位 1 → IPv4 组播地址，不是网卡地址<br></code></pre></td></tr></table></figure>
+
+<p>这张表是后面所有判断的基础：<strong>第 2 位为偶数的地址才能作为网卡地址；第 2 位是 2&#x2F;6&#x2F;A&#x2F;E 的地址一定不是 IEEE 分配给厂商的全球唯一地址。</strong> 它可能是手动设置的，也可能是虚拟网卡本来就在用的地址，比如 Wi-Fi Direct、VPN 虚拟网卡。</p>
+<h2 id="二、Windows-是怎么”改”MAC-的"><a href="#二、Windows-是怎么”改”MAC-的" class="headerlink" title="二、Windows 是怎么”改”MAC 的"></a>二、Windows 是怎么”改”MAC 的</h2><h3 id="2-1-出厂地址从来没变过"><a href="#2-1-出厂地址从来没变过" class="headerlink" title="2.1 出厂地址从来没变过"></a>2.1 出厂地址从来没变过</h3><p>网卡芯片的出厂地址存放在 EEPROM 或 NVM 里，Windows 修改 MAC 并不会动它。修改的实质是：<strong>让驱动在初始化时，用另一个地址代替出厂地址去收发帧</strong>。</p>
+<p>因此一张网卡同时有两个地址：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>NDIS 对应的 OID（以太网）</th>
+<th>PowerShell 字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>永久地址</td>
+<td><code>OID_802_3_PERMANENT_ADDRESS</code></td>
+<td><code>PermanentAddress</code></td>
+<td>芯片里烧录的出厂值</td>
+</tr>
+<tr>
+<td>当前地址</td>
+<td><code>OID_802_3_CURRENT_ADDRESS</code></td>
+<td><code>MacAddress</code></td>
+<td>驱动实际使用的地址</td>
+</tr>
+</tbody></table>
+<p>无线网卡在 Native 802.11 模型下对应的是 <code>OID_DOT11_*</code> 系列，含义相同。</p>
+<p>两者不相等，就说明有覆盖设置在生效。</p>
+<h3 id="2-2-覆盖值的来源：注册表中的-NetworkAddress"><a href="#2-2-覆盖值的来源：注册表中的-NetworkAddress" class="headerlink" title="2.2 覆盖值的来源：注册表中的 NetworkAddress"></a>2.2 覆盖值的来源：注册表中的 NetworkAddress</h3><p>Windows 的网卡驱动是 NDIS miniport 驱动。微软为”覆盖 MAC”定义了一个标准关键字 <code>NetworkAddress</code>。完整的数据流如下：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs text">设备管理器 / PowerShell<br>           │ 写入<br>           ▼<br>注册表 Class\&#123;4d36e972-...&#125;\00XX<br>  NetworkAddress = &quot;021A2B3C4D5E&quot;<br>           │ 网卡重启 / 开机<br>           ▼<br>NDIS miniport 驱动初始化（MiniportInitializeEx）<br>           │ NdisReadNetworkAddress<br>           ▼<br>    值存在且被驱动认可？<br>      ┌────┴─────┐<br>    是│          │否<br>      ▼          ▼<br>以新地址作为    使用 EEPROM 中<br>当前地址收发帧  的出厂地址<br>      │          │<br>      ▼          ▼<br>OID_802_3_CURRENT_ADDRESS = 新地址 / 出厂地址<br></code></pre></td></tr></table></figure>
+
+<p>关键点有三个：</p>
+<ol>
+<li><strong>存放位置</strong>：所有网卡共用一个设备类 GUID <code>&#123;4d36e972-e325-11ce-bfc1-08002be10318&#125;</code>（Net 类），每张网卡对应它下面的一个四位数子键（<code>0000</code>、<code>0001</code>……）。</li>
+<li><strong>读取时机</strong>：驱动在 <code>MiniportInitializeEx</code> 里调用 <code>NdisReadNetworkAddress</code> 读取这个值，所以<strong>修改后必须重启网卡</strong>（禁用再启用）才会生效。NDIS 只负责把字符串读出来，不做校验，地址是否合法由驱动自己判断。</li>
+<li><strong>是否支持由驱动决定</strong>：驱动的 INF 文件里如果声明了 <code>Ndi\params\NetworkAddress</code>，设备管理器的”高级”选项卡就会显示这一项。没有声明的驱动，即使手动写注册表，也可能完全不读。</li>
+</ol>
+<p>驱动 INF 中的声明大致长这样：</p>
+<p class="code-caption" data-lang="ini" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs ini"><span class="hljs-comment">; 驱动 INF 片段：声明 NetworkAddress 参数，设备管理器据此显示&quot;网络地址&quot;</span><br>HKR, Ndi\params\NetworkAddress, ParamDesc, 0, %NetworkAddress%<br>HKR, Ndi\params\NetworkAddress, type,      0, &quot;edit&quot;<br>HKR, Ndi\params\NetworkAddress, LimitText, 0, &quot;12&quot;<br>HKR, Ndi\params\NetworkAddress, UpperCase, 0, &quot;1&quot;<br>HKR, Ndi\params\NetworkAddress, Optional,  0, &quot;1&quot;<br></code></pre></td></tr></table></figure>
+
+<p><code>Optional = 1</code> 表示可以留空。留空（设备管理器里显示”不存在 &#x2F; Not Present”）时，驱动就使用出厂地址。</p>
+<h3 id="2-3-同一个设置，三种叫法"><a href="#2-3-同一个设置，三种叫法" class="headerlink" title="2.3 同一个设置，三种叫法"></a>2.3 同一个设置，三种叫法</h3><p>不同驱动给这个参数起的显示名不一样，但底层关键字都是 <code>NetworkAddress</code>：</p>
+<table>
+<thead>
+<tr>
+<th>驱动</th>
+<th>中文显示名</th>
+<th>英文显示名</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Intel 有线（e1d、e1r 等）</td>
+<td>本地管理地址</td>
+<td>Locally Administered Address</td>
+</tr>
+<tr>
+<td>Realtek 有线</td>
+<td>网络地址</td>
+<td>Network Address</td>
+</tr>
+<tr>
+<td>部分无线驱动</td>
+<td>网络地址</td>
+<td>Network Address</td>
+</tr>
+</tbody></table>
+<p><strong>写脚本时应该按 <code>RegistryKeyword</code> 定位，而不是按显示名</strong>，否则换一台英文系统或者另一个品牌的网卡，脚本就失效了。</p>
+<h3 id="2-4-无线网卡的额外限制"><a href="#2-4-无线网卡的额外限制" class="headerlink" title="2.4 无线网卡的额外限制"></a>2.4 无线网卡的额外限制</h3><p>从 Windows Vista&#x2F;7 开始，大多数无线网卡驱动只接受<strong>本地管理的单播地址</strong>作为覆盖值，也就是第 2 位只能是 <code>2</code>、<code>6</code>、<code>A</code>、<code>E</code>。不满足的值通常会被忽略，网卡继续使用出厂地址，而且不会报错。这条规则来自社区长期积累的经验（例如 Technitium TMAC 的说明），微软没有在正式文档中明确记录，个别驱动的表现可能不同。</p>
+<p>还有不少无线网卡驱动根本没有声明 <code>NetworkAddress</code>，笔者机器上的 Intel AX201 就是这样。这种网卡用任何修改方式都不会生效。</p>
+<p>有线网卡没有这条限制，只要是单播地址（第 2 位为偶数）、不是全零即可。这个区别非常容易被忽略，后文排错部分会再提到。</p>
+<h3 id="2-5-系统自带的随机-MAC"><a href="#2-5-系统自带的随机-MAC" class="headerlink" title="2.5 系统自带的随机 MAC"></a>2.5 系统自带的随机 MAC</h3><p>Windows 10&#x2F;11 的 Wi-Fi 有”随机硬件地址”功能（设置 → 网络和 Internet → WLAN）。开启后，系统会为每个网络生成一个本地管理地址，例如 <code>F6-xx-xx-xx-xx-xx</code>。这是另一套机制，由 WLAN 服务管理，不依赖驱动的 <code>NetworkAddress</code> 参数，只适用于无线网卡。网卡硬件不支持时，设置里不会出现这个开关。</p>
+<h2 id="三、关于-TeamViewer-与-MAC-地址"><a href="#三、关于-TeamViewer-与-MAC-地址" class="headerlink" title="三、关于 TeamViewer 与 MAC 地址"></a>三、关于 TeamViewer 与 MAC 地址</h2><p>经常有人问”TeamViewer 是如何修改 MAC 地址的”。准确的说法是：<strong>TeamViewer 不修改 MAC，只读取 MAC。</strong></p>
+<p>TeamViewer ID 是根据本机硬件指纹生成的。官方没有公开算法，社区普遍认为在 Windows 上会用到主网卡 MAC、系统盘卷序列号以及安装时写入的注册表信息。一般认为 ID 第一次生成后会写入配置，以后启动时直接读取，不会每次重新计算。配置位置因版本而异：64 位系统上的 32 位版本在 <code>HKLM\SOFTWARE\WOW6432Node\TeamViewer</code>，64 位版本在 <code>HKLM\SOFTWARE\TeamViewer</code>。</p>
+<p>TeamViewer 唯一会”产生” MAC 地址的地方是 VPN 组件。如果安装时勾选了这个可选组件，系统里会多出一块 TAP 虚拟网卡，地址由驱动生成，和物理网卡无关。</p>
+<p>网上流传的”改 MAC 换 ID”工具是在操作系统层面修改 MAC，并清理 TeamViewer 的配置，跟 TeamViewer 本身无关。用这种方法绕过商业用途检测违反许可协议；如果确实是误判，应该走官方的商业用途重置申请。</p>
+<h2 id="四、实战一：根据-MAC-反查本机网卡"><a href="#四、实战一：根据-MAC-反查本机网卡" class="headerlink" title="四、实战一：根据 MAC 反查本机网卡"></a>四、实战一：根据 MAC 反查本机网卡</h2><p>拿到一个陌生的 MAC 地址（比如路由器后台里看到的），第一步是确认它对应本机哪张网卡、是不是被改过。</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-comment"># find-mac.ps1：根据 MAC 地址查找本机网卡，并检查注册表中的覆盖设置</span><br><span class="hljs-keyword">param</span>([<span class="hljs-type">Parameter</span>(<span class="hljs-type">Mandatory</span>)][<span class="hljs-built_in">string</span>]<span class="hljs-variable">$Mac</span>)<br><br><span class="hljs-comment"># 统一成 Get-NetAdapter 使用的 XX-XX-XX-XX-XX-XX 格式</span><br><span class="hljs-variable">$hex</span> = (<span class="hljs-variable">$Mac</span> <span class="hljs-operator">-replace</span> <span class="hljs-string">&#x27;[-:\s]&#x27;</span>, <span class="hljs-string">&#x27;&#x27;</span>).ToUpper()<br><span class="hljs-variable">$target</span> = (<span class="hljs-variable">$hex</span> <span class="hljs-operator">-split</span> <span class="hljs-string">&#x27;(..)&#x27;</span> | <span class="hljs-built_in">Where-Object</span> &#123; <span class="hljs-variable">$_</span> &#125;) <span class="hljs-operator">-join</span> <span class="hljs-string">&#x27;-&#x27;</span><br><br><span class="hljs-string">&quot;== 匹配的网卡（包含隐藏网卡）==&quot;</span><br><span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-IncludeHidden</span> |<br>    <span class="hljs-built_in">Where-Object</span> &#123; <span class="hljs-variable">$_</span>.MacAddress <span class="hljs-operator">-eq</span> <span class="hljs-variable">$target</span> &#125; |<br>    <span class="hljs-built_in">Format-List</span> Name, InterfaceDescription, MacAddress, PermanentAddress, Status, Virtual, PnPDeviceID<br><br><span class="hljs-string">&quot;== 注册表中设置了 NetworkAddress 覆盖的网卡 ==&quot;</span><br><span class="hljs-variable">$classKey</span> = <span class="hljs-string">&#x27;HKLM:\SYSTEM\CurrentControlSet\Control\Class\&#123;4d36e972-e325-11ce-bfc1-08002be10318&#125;&#x27;</span><br><span class="hljs-built_in">Get-ChildItem</span> <span class="hljs-variable">$classKey</span> <span class="hljs-literal">-ErrorAction</span> SilentlyContinue | <span class="hljs-built_in">ForEach-Object</span> &#123;<br>    <span class="hljs-variable">$p</span> = <span class="hljs-built_in">Get-ItemProperty</span> <span class="hljs-variable">$_</span>.PSPath <span class="hljs-literal">-ErrorAction</span> SilentlyContinue<br>    <span class="hljs-keyword">if</span> (<span class="hljs-variable">$p</span>.NetworkAddress) &#123;<br>        [<span class="hljs-type">pscustomobject</span>]<span class="hljs-selector-tag">@</span>&#123; Key = <span class="hljs-variable">$_</span>.PSChildName; DriverDesc = <span class="hljs-variable">$p</span>.DriverDesc; NetworkAddress = <span class="hljs-variable">$p</span>.NetworkAddress &#125;<br>    &#125;<br>&#125; | <span class="hljs-built_in">Format-Table</span> <span class="hljs-literal">-AutoSize</span><br></code></pre></td></tr></table></figure>
+
+<p>运行（普通权限即可）：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">.\<span class="hljs-built_in">find-mac</span>.ps1 <span class="hljs-literal">-Mac</span> <span class="hljs-number">52</span><span class="hljs-literal">-5A-65-11-22-33</span><br></code></pre></td></tr></table></figure>
+
+<p>预期输出（地址为示例值）：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs text">== 匹配的网卡（包含隐藏网卡）==<br><br>Name                 : 以太网<br>InterfaceDescription : Intel(R) Ethernet Connection (11) I219-V<br>MacAddress           : 52-5A-65-11-22-33<br>PermanentAddress     : 001B21AABBCC<br>Status               : Disconnected<br>Virtual              : False<br>PnPDeviceID          : PCI\VEN_8086&amp;DEV_0D4D&amp;...<br><br>== 注册表中设置了 NetworkAddress 覆盖的网卡 ==<br><br>Key  DriverDesc                               NetworkAddress<br>---  ----------                               --------------<br>0002 Intel(R) Ethernet Connection (11) I219-V 525A65112233<br></code></pre></td></tr></table></figure>
+
+<p>判断地址是否被改过，以前两条为准，第三条只作参考：</p>
+<ol>
+<li><code>MacAddress</code> 与 <code>PermanentAddress</code> 不相等；</li>
+<li>注册表里该网卡的子键有 <code>NetworkAddress</code> 值；</li>
+<li>地址第 2 位是 <code>2/6/A/E</code>。出现在物理网卡上时多半是被改过的；但 Wi-Fi Direct、VPN 这类虚拟网卡的出厂地址本身就可能是本地管理地址，这时 <code>MacAddress</code> 与 <code>PermanentAddress</code> 相等，地址并没有被改过。</li>
+</ol>
+<blockquote>
+<p>注意 <code>PermanentAddress</code> 的格式没有分隔符，<code>MacAddress</code> 却是 <code>XX-XX-...</code> 的格式，比较之前要先统一格式。</p>
+</blockquote>
+<p>顺手看一眼全部网卡的 MAC 也很有用，常见的虚拟网卡一眼就能认出来：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-IncludeHidden</span> | <span class="hljs-built_in">Where-Object</span> MacAddress |<br>    <span class="hljs-built_in">Sort-Object</span> Name | <span class="hljs-built_in">Format-Table</span> Name, InterfaceDescription, MacAddress, Status <span class="hljs-literal">-AutoSize</span><br></code></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>前缀</th>
+<th>来源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>00-50-56</code></td>
+<td>VMware 虚拟网卡（VMnet1、VMnet8）</td>
+</tr>
+<tr>
+<td><code>00-15-5D</code></td>
+<td>Hyper-V 虚拟交换机</td>
+</tr>
+<tr>
+<td><code>0A-00-27</code></td>
+<td>VirtualBox Host-Only</td>
+</tr>
+<tr>
+<td>与 WLAN 地址相近（仅个别位不同）</td>
+<td>Wi-Fi Direct 虚拟网卡、蓝牙 PAN</td>
+</tr>
+</tbody></table>
+<h2 id="五、实战二：三种修改方式"><a href="#五、实战二：三种修改方式" class="headerlink" title="五、实战二：三种修改方式"></a>五、实战二：三种修改方式</h2><h3 id="5-1-设备管理器（图形界面）"><a href="#5-1-设备管理器（图形界面）" class="headerlink" title="5.1 设备管理器（图形界面）"></a>5.1 设备管理器（图形界面）</h3><ol>
+<li>按 <code>Win + X</code>，选”设备管理器”，或者运行 <code>devmgmt.msc</code>。</li>
+<li>展开”网络适配器”，右键目标网卡，选”属性”。</li>
+<li>打开”高级”选项卡，在左侧列表中找到”网络地址”或”本地管理地址”。</li>
+<li>选中”值”，输入 12 位十六进制，不要带分隔符，例如 <code>021A2B3C4D5E</code>。</li>
+<li>点”确定”。网卡会自动重启，断网几秒属于正常现象。</li>
+</ol>
+<p>恢复出厂地址：在同一位置选”不存在 &#x2F; Not Present”。</p>
+<h3 id="5-2-PowerShell"><a href="#5-2-PowerShell" class="headerlink" title="5.2 PowerShell"></a>5.2 PowerShell</h3><p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-comment"># 判断驱动是否支持覆盖：有结果且 DisplayName 非空才算支持</span><br><span class="hljs-built_in">Get-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress |<br>    <span class="hljs-built_in">Format-List</span> DisplayName, RegistryKeyword, RegistryValue<br><br><span class="hljs-comment"># 设置（需要管理员权限；默认会自动重启网卡，加 -NoRestart 可以禁止）</span><br><span class="hljs-built_in">Set-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress <span class="hljs-literal">-RegistryValue</span> <span class="hljs-string">&quot;021A2B3C4D5E&quot;</span><br></code></pre></td></tr></table></figure>
+
+<p>判断是否支持时不要加 <code>-AllProperties</code>。不加时只返回驱动 INF 声明过的属性；加上之后，手工写进注册表、但 INF 没有声明的值也会被返回（<code>DisplayName</code> 为空），会被误判为”支持”。</p>
+<p>恢复时有一个坑：<code>Reset-NetAdapterAdvancedProperty</code> <strong>没有</strong> <code>-RegistryKeyword</code> 参数，只能按 <code>-DisplayName</code> 定位，而显示名随系统语言和驱动变化。比较稳妥的写法是先用 <code>Get-</code> 取出对象，再通过管道传给 <code>Reset-</code>：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">Get-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress |<br>    <span class="hljs-built_in">Reset-NetAdapterAdvancedProperty</span><br></code></pre></td></tr></table></figure>
+
+<p>可以自己核实这个差异：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell">(<span class="hljs-built_in">Get-Command</span> <span class="hljs-built_in">Set-NetAdapterAdvancedProperty</span>).Parameters.Keys <span class="hljs-operator">-contains</span> <span class="hljs-string">&#x27;RegistryKeyword&#x27;</span>    <span class="hljs-comment"># True</span><br>(<span class="hljs-built_in">Get-Command</span> <span class="hljs-built_in">Reset-NetAdapterAdvancedProperty</span>).Parameters.Keys <span class="hljs-operator">-contains</span> <span class="hljs-string">&#x27;RegistryKeyword&#x27;</span>  <span class="hljs-comment"># False</span><br></code></pre></td></tr></table></figure>
+
+<p>另外还有一个更短的写法 <code>Set-NetAdapter -MacAddress</code>，它底层写的也是 <code>NetworkAddress</code>，效果相同。</p>
+<h3 id="5-3-注册表（高级选项里没有这一项时）"><a href="#5-3-注册表（高级选项里没有这一项时）" class="headerlink" title="5.3 注册表（高级选项里没有这一项时）"></a>5.3 注册表（高级选项里没有这一项时）</h3><ol>
+<li>运行 <code>regedit</code>，先导出备份。</li>
+<li>定位到 <code>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\&#123;4d36e972-e325-11ce-bfc1-08002be10318&#125;</code>。</li>
+<li>依次点开 <code>0000</code>、<code>0001</code>……，找到对应网卡的子键。最可靠的办法是比对 <code>NetCfgInstanceId</code> 和 <code>Get-NetAdapter</code> 返回的 <code>InterfaceGuid</code>，两者格式相同。也可以比对 <code>DriverDesc</code>，但要注意它对应的是设备名（<code>InterfaceDescription</code>），而不是”以太网”这类连接名；同型号网卡的 <code>InterfaceDescription</code> 会带 <code>#2</code> 之类的后缀，<code>DriverDesc</code> 没有。</li>
+<li>新建<strong>字符串值</strong>，名称为 <code>NetworkAddress</code>，数据填写 <code>021A2B3C4D5E</code>。</li>
+<li>禁用再启用网卡，或者重启电脑。</li>
+</ol>
+<p>恢复：删除 <code>NetworkAddress</code> 值，再重启网卡。</p>
+<blockquote>
+<p>驱动 INF 没有声明 <code>NetworkAddress</code> 时，这种方法能否生效完全取决于驱动是否调用了 <code>NdisReadNetworkAddress</code>。不少无线驱动不读这个值，写了也没有效果。</p>
+</blockquote>
+<h2 id="六、实战三：一个可复用的修改脚本"><a href="#六、实战三：一个可复用的修改脚本" class="headerlink" title="六、实战三：一个可复用的修改脚本"></a>六、实战三：一个可复用的修改脚本</h2><p>图形界面适合偶尔改一次。需要反复测试时，脚本更方便：它能校验格式、检查权限，修改后自动显示结果。</p>
+<h3 id="6-1-目录结构"><a href="#6-1-目录结构" class="headerlink" title="6.1 目录结构"></a>6.1 目录结构</h3><p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">mac-tools/<br>├── find-mac.ps1     # 第四节：根据 MAC 反查网卡<br>└── set-mac.ps1      # 本节：修改、查看、恢复 MAC<br></code></pre></td></tr></table></figure>
+
+<h3 id="6-2-完整代码"><a href="#6-2-完整代码" class="headerlink" title="6.2 完整代码"></a>6.2 完整代码</h3><p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-comment">&lt;#</span><br><span class="hljs-comment">修改网卡 MAC 地址（默认网卡：以太网）</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">用法（以管理员身份打开 PowerShell，cd 到本脚本所在目录）：</span><br><span class="hljs-comment">  .\set-mac.ps1                       # 只查看当前 MAC 和出厂 MAC</span><br><span class="hljs-comment">  .\set-mac.ps1 -Mac 02AABBCCDDEE     # 设置新 MAC（可带 - 或 : 分隔）</span><br><span class="hljs-comment">  .\set-mac.ps1 -Restore              # 恢复出厂 MAC</span><br><span class="hljs-comment">  .\set-mac.ps1 -Mac 02... -Adapter &quot;WLAN&quot;   # 改其他网卡</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">用完整路径运行时：路径带引号要在前面加 &amp; ，例如</span><br><span class="hljs-comment">  &amp; &quot;D:\tools\mac-tools\set-mac.ps1&quot; -Mac 0C1122334455</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">地址规则：第 2 位必须是偶数（单播）；无线网卡还要求第 2 位是 2/6/A/E。</span><br><span class="hljs-comment">改完网卡会自动重启，断网几秒属正常。</span><br><span class="hljs-comment">#&gt;</span><br><span class="hljs-keyword">param</span>(<br>    [<span class="hljs-built_in">string</span>]<span class="hljs-variable">$Mac</span>,<br>    [<span class="hljs-type">switch</span>]<span class="hljs-variable">$Restore</span>,<br>    [<span class="hljs-built_in">string</span>]<span class="hljs-variable">$Adapter</span> = <span class="hljs-string">&#x27;以太网&#x27;</span><br>)<br><span class="hljs-variable">$ErrorActionPreference</span> = <span class="hljs-string">&#x27;Stop&#x27;</span><br><br><span class="hljs-keyword">if</span> (<span class="hljs-variable">$Mac</span> <span class="hljs-operator">-and</span> <span class="hljs-variable">$Restore</span>) &#123; <span class="hljs-keyword">throw</span> <span class="hljs-string">&#x27;-Mac 和 -Restore 不能同时使用&#x27;</span> &#125;<br><br><span class="hljs-comment"># -Name 支持通配符：必须正好匹配 1 张网卡，避免把同一个 MAC 写到多张网卡上</span><br><span class="hljs-variable">$nics</span> = <span class="hljs-selector-tag">@</span>(<span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-Name</span> <span class="hljs-variable">$Adapter</span>)<br><span class="hljs-keyword">if</span> (<span class="hljs-variable">$nics</span>.Count <span class="hljs-operator">-ne</span> <span class="hljs-number">1</span>) &#123; <span class="hljs-keyword">throw</span> <span class="hljs-string">&quot;-Adapter &#x27;<span class="hljs-variable">$Adapter</span>&#x27; 匹配到 <span class="hljs-variable">$</span>(<span class="hljs-variable">$nics</span>.Count) 张网卡，请写准确的网卡名&quot;</span> &#125;<br><span class="hljs-variable">$nic</span> = <span class="hljs-variable">$nics</span>[<span class="hljs-number">0</span>]<br><span class="hljs-variable">$Adapter</span> = <span class="hljs-variable">$nic</span>.Name<br><br><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">Show-State</span></span> &#123;<br>    <span class="hljs-variable">$a</span> = <span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-Name</span> <span class="hljs-variable">$Adapter</span><br>    <span class="hljs-variable">$a</span> | <span class="hljs-built_in">Format-List</span> Name, InterfaceDescription, MacAddress, PermanentAddress, Status<br>    <span class="hljs-keyword">if</span> (<span class="hljs-operator">-not</span> <span class="hljs-variable">$a</span>.PermanentAddress) &#123; <span class="hljs-string">&#x27;读不到出厂 MAC，无法判断是否被改过&#x27;</span> &#125;<br>    <span class="hljs-keyword">elseif</span> ((<span class="hljs-variable">$a</span>.MacAddress <span class="hljs-operator">-replace</span> <span class="hljs-string">&#x27;-&#x27;</span>, <span class="hljs-string">&#x27;&#x27;</span>) <span class="hljs-operator">-eq</span> <span class="hljs-variable">$a</span>.PermanentAddress) &#123; <span class="hljs-string">&#x27;当前使用的是出厂 MAC&#x27;</span> &#125;<br>    <span class="hljs-keyword">else</span> &#123; <span class="hljs-string">&#x27;当前使用的是自定义 MAC&#x27;</span> &#125;<br>&#125;<br><br><span class="hljs-keyword">if</span> (<span class="hljs-operator">-not</span> <span class="hljs-variable">$Mac</span> <span class="hljs-operator">-and</span> <span class="hljs-operator">-not</span> <span class="hljs-variable">$Restore</span>) &#123; <span class="hljs-built_in">Show-State</span>; <span class="hljs-keyword">return</span> &#125;<br><br><span class="hljs-comment"># 先校验格式，再要求管理员权限</span><br><span class="hljs-keyword">if</span> (<span class="hljs-variable">$Mac</span>) &#123;<br>    <span class="hljs-variable">$m</span> = (<span class="hljs-variable">$Mac</span> <span class="hljs-operator">-replace</span> <span class="hljs-string">&#x27;[-:\s]&#x27;</span>, <span class="hljs-string">&#x27;&#x27;</span>).ToUpper()<br>    <span class="hljs-keyword">if</span> (<span class="hljs-variable">$m</span> <span class="hljs-operator">-notmatch</span> <span class="hljs-string">&#x27;^[0-9A-F]&#123;12&#125;$&#x27;</span> <span class="hljs-operator">-or</span> <span class="hljs-variable">$m</span> <span class="hljs-operator">-eq</span> <span class="hljs-string">&#x27;000000000000&#x27;</span>) &#123; <span class="hljs-keyword">throw</span> <span class="hljs-string">&quot;格式错误：<span class="hljs-variable">$Mac</span>，需要 12 位十六进制，例如 02AABBCCDDEE&quot;</span> &#125;<br>    <span class="hljs-variable">$d</span> = <span class="hljs-variable">$m</span>.Substring(<span class="hljs-number">1</span>, <span class="hljs-number">1</span>)<br>    <span class="hljs-keyword">if</span> (<span class="hljs-string">&#x27;13579BDF&#x27;</span>.Contains(<span class="hljs-variable">$d</span>)) &#123; <span class="hljs-keyword">throw</span> <span class="hljs-string">&quot;第 2 位是 <span class="hljs-variable">$d</span>，这是组播地址，网卡不能用；第 2 位必须是偶数（0/2/4/6/8/A/C/E）&quot;</span> &#125;<br>    <span class="hljs-comment"># 多数无线网卡驱动只接受本地管理地址（第 2 位 2/6/A/E）；有线网卡任意单播地址都可以</span><br>    <span class="hljs-keyword">if</span> (<span class="hljs-variable">$nic</span>.PhysicalMediaType <span class="hljs-operator">-eq</span> <span class="hljs-string">&#x27;Native 802.11&#x27;</span> <span class="hljs-operator">-and</span> <span class="hljs-operator">-not</span> <span class="hljs-string">&#x27;26AE&#x27;</span>.Contains(<span class="hljs-variable">$d</span>)) &#123;<br>        <span class="hljs-keyword">throw</span> <span class="hljs-string">&quot;无线网卡的第 2 位必须是 2/6/A/E，当前是 <span class="hljs-variable">$d</span>&quot;</span><br>    &#125;<br>&#125;<br><br><span class="hljs-variable">$isAdmin</span> = ([<span class="hljs-type">Security.Principal.WindowsPrincipal</span>][<span class="hljs-type">Security.Principal.WindowsIdentity</span>]::GetCurrent()).IsInRole(<br>    [<span class="hljs-type">Security.Principal.WindowsBuiltInRole</span>]::Administrator)<br><span class="hljs-keyword">if</span> (<span class="hljs-operator">-not</span> <span class="hljs-variable">$isAdmin</span>) &#123; <span class="hljs-keyword">throw</span> <span class="hljs-string">&#x27;请右键 PowerShell -&gt; 以管理员身份运行，再执行本脚本&#x27;</span> &#125;<br><br><span class="hljs-comment"># 两个 cmdlet 默认都会自动重启网卡；按 RegistryKeyword 定位，避免中英文系统下属性显示名不同</span><br><span class="hljs-keyword">if</span> (<span class="hljs-variable">$Restore</span>) &#123;<br>    <span class="hljs-built_in">Get-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-variable">$Adapter</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress | <span class="hljs-built_in">Reset-NetAdapterAdvancedProperty</span><br>&#125; <span class="hljs-keyword">else</span> &#123;<br>    <span class="hljs-built_in">Set-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-variable">$Adapter</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress <span class="hljs-literal">-RegistryValue</span> <span class="hljs-variable">$m</span><br>&#125;<br><br><span class="hljs-built_in">Show-State</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="6-3-代码要点"><a href="#6-3-代码要点" class="headerlink" title="6.3 代码要点"></a>6.3 代码要点</h3><p><strong>第 23 行 互斥检查</strong>：<code>-Mac</code> 和 <code>-Restore</code> 同时出现时直接报错，不去猜用户到底想做哪件事。</p>
+<p><strong>第 25~29 行 锁定唯一网卡</strong>：<code>Get-NetAdapter -Name</code> 支持通配符，<code>-Adapter &#39;以太*&#39;</code> 可能同时匹配”以太网”和”以太网 4”。不加这层检查，后面的 <code>Set-</code> 会把同一个 MAC 写到多张网卡上。确认只有一张之后，再把 <code>$Adapter</code> 换成准确的网卡名。</p>
+<p>**第 31~37 行 <code>Show-State</code>**：同时输出 <code>MacAddress</code> 和 <code>PermanentAddress</code>，并直接给出结论。比较前要去掉 <code>MacAddress</code> 中的 <code>-</code>，因为两个字段的格式不一致。在某些虚拟化环境或驱动下 <code>PermanentAddress</code> 为空，这时只提示无法判断，避免误报”自定义 MAC”。</p>
+<p><strong>第 42~51 行 地址校验</strong>：按第一节的位结构分三层检查：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">输入 → 去掉分隔符并转大写<br>     → 12 位十六进制且不是全零？         否 → 格式错误<br>     → 第 2 位是奇数（组播）？           是 → 拒绝<br>     → 无线网卡且第 2 位不是 2/6/A/E？   是 → 拒绝<br>     → 通过<br></code></pre></td></tr></table></figure>
+
+<p>用 <code>PhysicalMediaType -eq &#39;Native 802.11&#39;</code> 区分无线网卡，有线网卡的值是 <code>802.3</code>。</p>
+<p><strong>第 53~55 行 先校验、后检查权限</strong>：格式错误不需要管理员权限也能发现。这样在普通窗口里就能测完所有校验分支，不会因为误操作真的改掉 MAC。</p>
+<p><strong>第 57~62 行 修改与恢复</strong>：两个 cmdlet 都按 <code>RegistryKeyword</code> 定位，不依赖”本地管理地址”这类显示名。<code>Reset-</code> 不支持 <code>-RegistryKeyword</code>，所以通过管道传入对象。两者默认都会重启网卡，不需要再调用 <code>Restart-NetAdapter</code>。</p>
+<h3 id="6-4-运行步骤与预期输出"><a href="#6-4-运行步骤与预期输出" class="headerlink" title="6.4 运行步骤与预期输出"></a>6.4 运行步骤与预期输出</h3><p><strong>第 1 步</strong>：打开一个<strong>普通</strong> PowerShell 窗口（不要用管理员身份），进入脚本目录。前三步都在这个窗口里做，即使输错命令也不会真的改掉 MAC。</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">cd</span> D:\tools\mac<span class="hljs-literal">-tools</span><br></code></pre></td></tr></table></figure>
+
+<p><strong>第 2 步</strong>：查看当前状态（不需要管理员权限）。</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">.\<span class="hljs-built_in">set-mac</span>.ps1<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs text">Name                 : 以太网<br>InterfaceDescription : Intel(R) Ethernet Connection (11) I219-V<br>MacAddress           : 00-1B-21-AA-BB-CC<br>PermanentAddress     : 001B21AABBCC<br>Status               : Up<br><br>当前使用的是出厂 MAC<br>&lt;p class=&quot;code-caption&quot; data-lang=&quot;&quot; data-line_number=&quot;frontend&quot; data-trim_indent=&quot;backend&quot; data-label_position=&quot;outer&quot; data-labels_left=&quot;Code&quot; data-labels_right=&quot;:&quot; data-labels_copy=&quot;&quot;&gt;&lt;span class=&quot;code-caption-label&quot;&gt;&lt;/span&gt;&lt;a class=&quot;code-caption-copy&quot;&gt;&lt;/a&gt;&lt;/p&gt;<br><br>```  <br><br>**第 3 步**：在普通窗口里验证校验逻辑，这些情况都不会修改 MAC。<br><br>```powershell<br>.\set-mac.ps1 -Mac 12345                         # 格式错误：12345，需要 12 位十六进制……<br>.\set-mac.ps1 -Mac 01AABBCCDDEE                  # 第 2 位是 1，这是组播地址……<br>.\set-mac.ps1 -Mac 0C1122334455 -Adapter WLAN    # 无线网卡的第 2 位必须是 2/6/A/E，当前是 C<br>.\set-mac.ps1 -Mac 02AABBCCDDEE -Restore         # -Mac 和 -Restore 不能同时使用<br>.\set-mac.ps1 -Adapter &#x27;以太*&#x27;                   # 有多张以太网卡时：匹配到 2 张网卡，请写准确的网卡名<br>.\set-mac.ps1 -Mac 0C1122334455                  # 请右键 PowerShell -&gt; 以管理员身份运行……<br></code></pre></td></tr></table></figure>
+
+<p>最后一条说明地址通过了校验，只是被权限检查拦了下来，这正是预期的行为。</p>
+<p><strong>第 4 步</strong>：另开一个<strong>管理员</strong>窗口（右键开始菜单，选”终端（管理员）”），进入同一目录后再修改。这里用的是推荐的本地管理地址：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">.\<span class="hljs-built_in">set-mac</span>.ps1 <span class="hljs-literal">-Mac</span> <span class="hljs-number">02</span><span class="hljs-literal">-11-22-33-44-55</span><br></code></pre></td></tr></table></figure>
+
+<p>输出（节选）：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">MacAddress           : 02-11-22-33-44-55<br>PermanentAddress     : 001B21AABBCC<br><br>当前使用的是自定义 MAC<br></code></pre></td></tr></table></figure>
+
+<p><strong>第 5 步</strong>：用系统命令交叉验证。</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">getmac /v /fo list<br></code></pre></td></tr></table></figure>
+
+<p><strong>第 6 步</strong>：恢复出厂地址。</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">.\<span class="hljs-built_in">set-mac</span>.ps1 <span class="hljs-literal">-Restore</span><br></code></pre></td></tr></table></figure>
+
+<p>输出（节选）：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">MacAddress           : 00-1B-21-AA-BB-CC<br>PermanentAddress     : 001B21AABBCC<br><br>当前使用的是出厂 MAC<br></code></pre></td></tr></table></figure>
+
+<h3 id="6-5-保存编码：建议使用-UTF-8-with-BOM"><a href="#6-5-保存编码：建议使用-UTF-8-with-BOM" class="headerlink" title="6.5 保存编码：建议使用 UTF-8 with BOM"></a>6.5 保存编码：建议使用 UTF-8 with BOM</h3><p>脚本里有中文（默认网卡名”以太网”、提示信息）。Windows PowerShell 5.1 读取<strong>没有 BOM</strong> 的 <code>.ps1</code> 时，会按系统 ANSI 代码页解码，中文系统上是 GBK。</p>
+<p>后果比”中文变乱码”严重。UTF-8 的中文字节按 GBK 解码时，可能把紧跟在后面的结束引号一起吞掉，例如 <code>&#39;以太网&#39;</code> 会被解成 <code>&#39;浠ュお缃?</code>。字符串没有闭合，脚本在<strong>解析阶段</strong>就报错，一行都不会执行：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">Missing &#x27;)&#x27; in function parameter list.<br>    + FullyQualifiedErrorId : MissingEndParenthesisInFunctionParameterList<br></code></pre></td></tr></table></figure>
+
+<p>转换为 UTF-8 with BOM 的两行命令如下。前提是原文件本身是 UTF-8 编码；如果原文件已经是 GBK，这样转换会得到乱码：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-variable">$f</span> = (<span class="hljs-built_in">Resolve-Path</span> .\<span class="hljs-built_in">set-mac</span>.ps1).Path<br>[<span class="hljs-type">IO.File</span>]::WriteAllText(<span class="hljs-variable">$f</span>, [<span class="hljs-type">IO.File</span>]::ReadAllText(<span class="hljs-variable">$f</span>, [<span class="hljs-type">Text.Encoding</span>]::UTF8), (<span class="hljs-built_in">New-Object</span> Text.UTF8Encoding <span class="hljs-variable">$true</span>))<br></code></pre></td></tr></table></figure>
+
+<p>检查前 3 个字节是不是 <code>EF BB BF</code>：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">([<span class="hljs-type">IO.File</span>]::ReadAllBytes(<span class="hljs-variable">$f</span>)[<span class="hljs-number">0</span><span class="hljs-type">..2</span>] | <span class="hljs-built_in">ForEach-Object</span> &#123; <span class="hljs-string">&#x27;&#123;0:X2&#125;&#x27;</span> <span class="hljs-operator">-f</span> <span class="hljs-variable">$_</span> &#125;) <span class="hljs-operator">-join</span> <span class="hljs-string">&#x27; &#x27;</span><br></code></pre></td></tr></table></figure>
+
+<p>PowerShell 7 默认按 UTF-8 读取，没有这个问题。在中文系统上把脚本存成 GBK 也能运行，但换到其他语言的系统就会出错。脚本通常要兼容系统自带的 5.1，所以带上 BOM 最稳妥。</p>
+<h2 id="七、踩坑与排错"><a href="#七、踩坑与排错" class="headerlink" title="七、踩坑与排错"></a>七、踩坑与排错</h2><h3 id="7-1-“表达式或语句中包含意外的标记-Mac”"><a href="#7-1-“表达式或语句中包含意外的标记-Mac”" class="headerlink" title="7.1 “表达式或语句中包含意外的标记 -Mac”"></a>7.1 “表达式或语句中包含意外的标记 -Mac”</h3><p>报错（节选）：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">PS C:\WINDOWS\system32&gt; &quot;D:\tools\mac-tools\set-mac.ps1&quot; -Mac 0c1122334455<br>表达式或语句中包含意外的标记&quot;-Mac&quot;。<br>    + FullyQualifiedErrorId : UnexpectedToken<br></code></pre></td></tr></table></figure>
+
+<p><strong>原因</strong>：在 PowerShell 里，以引号开头的内容会被解析成<strong>字符串表达式</strong>，而不是命令。字符串后面再跟 <code>-Mac</code>，语法上就成了非法标记。这是解析阶段的错误，脚本根本没有运行。</p>
+<p><strong>解决</strong>：加上调用运算符 <code>&amp;</code>，或者路径没有空格时直接去掉引号：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell">&amp; <span class="hljs-string">&quot;D:\tools\mac-tools\set-mac.ps1&quot;</span> <span class="hljs-literal">-Mac</span> <span class="hljs-number">0</span>c1122334455<br>D:\tools\mac<span class="hljs-literal">-tools</span>\<span class="hljs-built_in">set-mac</span>.ps1 <span class="hljs-literal">-Mac</span> <span class="hljs-number">0</span>c1122334455<br></code></pre></td></tr></table></figure>
+
+<p>在 <code>cmd</code> 中习惯了给路径加引号的人，最容易在这里出错。</p>
+<h3 id="7-2-改完显示成功，但地址没变（无线网卡）"><a href="#7-2-改完显示成功，但地址没变（无线网卡）" class="headerlink" title="7.2 改完显示成功，但地址没变（无线网卡）"></a>7.2 改完显示成功，但地址没变（无线网卡）</h3><p><strong>原因</strong>：给无线网卡设置了第 2 位不是 <code>2/6/A/E</code> 的地址，比如 <code>0C-...</code>，多数无线驱动会忽略这个值。另一种可能是驱动根本不支持覆盖，见 7.4。</p>
+<p><strong>排查</strong>：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-Name</span> WLAN | <span class="hljs-built_in">Format-List</span> PhysicalMediaType, MacAddress, PermanentAddress<br></code></pre></td></tr></table></figure>
+
+<p><code>PhysicalMediaType</code> 为 <code>Native 802.11</code> 时，改用 <code>02-...</code>、<code>06-...</code> 这类地址。</p>
+<h3 id="7-3-有线网卡被错误拒绝"><a href="#7-3-有线网卡被错误拒绝" class="headerlink" title="7.3 有线网卡被错误拒绝"></a>7.3 有线网卡被错误拒绝</h3><p>常见的错误写法是：把”第 2 位必须是 2&#x2F;6&#x2F;A&#x2F;E”这条无线网卡的规则套用到所有网卡上，导致有线网卡想设置 <code>0C-...</code> 这类地址（例如克隆另一台设备的 MAC）时被拒绝。</p>
+<p>修正方法是按网卡类型区分校验：有线网卡只要求单播（第 2 位为偶数），无线网卡才要求本地管理位。<strong>校验规则不应该比平台本身的限制更严格。</strong></p>
+<h3 id="7-4-高级选项卡里没有”网络地址”"><a href="#7-4-高级选项卡里没有”网络地址”" class="headerlink" title="7.4 高级选项卡里没有”网络地址”"></a>7.4 高级选项卡里没有”网络地址”</h3><p><strong>原因</strong>：驱动 INF 没有声明 <code>NetworkAddress</code> 参数。</p>
+<p><strong>排查</strong>：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">Get-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> |<br>    <span class="hljs-built_in">Format-Table</span> DisplayName, RegistryKeyword <span class="hljs-literal">-AutoSize</span><br></code></pre></td></tr></table></figure>
+
+<p>这里不要加 <code>-AllProperties</code>，否则手工写进注册表的值也会出现在列表里。驱动不支持时，用 <code>-RegistryKeyword NetworkAddress</code> 单独查询会报”找不到任何匹配的 MSFT_NetAdapterAdvancedPropertySettingData 对象”。</p>
+<p>列表中没有 <code>NetworkAddress</code> 时，可以依次尝试：</p>
+<ol>
+<li>从网卡厂商官网下载驱动，替换 Windows Update 自动安装的通用驱动；</li>
+<li>按 5.3 节手动写注册表；</li>
+<li>两种方法都无效，说明驱动不支持修改，只能换网卡或者使用 USB 网卡。</li>
+</ol>
+<h3 id="7-5-Restore-之后仍然显示”自定义-MAC”"><a href="#7-5-Restore-之后仍然显示”自定义-MAC”" class="headerlink" title="7.5 -Restore 之后仍然显示”自定义 MAC”"></a>7.5 -Restore 之后仍然显示”自定义 MAC”</h3><p><strong>可能的原因</strong>：<code>Reset-</code> 恢复的是驱动 INF 中声明的默认值。常见驱动的默认值都是空值，例如 Intel I219 的 INF 写的是 <code>Default, 0, &quot;&quot;</code>，恢复后就是”不存在”。如果遇到默认值不为空的驱动，恢复后仍然会是一个自定义地址。</p>
+<p><strong>解决</strong>：在<strong>管理员</strong>窗口中直接删除注册表值：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-variable">$guid</span> = (<span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span>).InterfaceGuid<br><span class="hljs-variable">$classKey</span> = <span class="hljs-string">&#x27;HKLM:\SYSTEM\CurrentControlSet\Control\Class\&#123;4d36e972-e325-11ce-bfc1-08002be10318&#125;&#x27;</span><br><span class="hljs-variable">$key</span> = <span class="hljs-built_in">Get-ChildItem</span> <span class="hljs-variable">$classKey</span> <span class="hljs-literal">-ErrorAction</span> SilentlyContinue |<br>    <span class="hljs-built_in">Where-Object</span> &#123; (<span class="hljs-built_in">Get-ItemProperty</span> <span class="hljs-variable">$_</span>.PSPath <span class="hljs-literal">-ErrorAction</span> SilentlyContinue).NetCfgInstanceId <span class="hljs-operator">-eq</span> <span class="hljs-variable">$guid</span> &#125;<br><span class="hljs-keyword">if</span> (<span class="hljs-operator">-not</span> <span class="hljs-variable">$key</span>) &#123; <span class="hljs-keyword">throw</span> <span class="hljs-string">&#x27;没有找到这张网卡对应的注册表子键&#x27;</span> &#125;<br><span class="hljs-built_in">Remove-ItemProperty</span> <span class="hljs-literal">-Path</span> <span class="hljs-variable">$key</span>.PSPath <span class="hljs-literal">-Name</span> NetworkAddress<br><span class="hljs-built_in">Restart-NetAdapter</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="7-6-改完-MAC-之后上不了网"><a href="#7-6-改完-MAC-之后上不了网" class="headerlink" title="7.6 改完 MAC 之后上不了网"></a>7.6 改完 MAC 之后上不了网</h3><table>
+<thead>
+<tr>
+<th>现象</th>
+<th>原因</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>获取不到 IP</td>
+<td>DHCP 服务器或路由器绑定了 MAC</td>
+<td>恢复原地址，或者让管理员放行新地址</td>
+</tr>
+<tr>
+<td>网络时断时续</td>
+<td>MAC 地址与网段内其他设备重复（可能连带 IP 冲突）</td>
+<td>换一个地址，优先使用本地管理地址</td>
+</tr>
+<tr>
+<td>公司网络认证失败</td>
+<td>802.1X &#x2F; NAC 按 MAC 认证</td>
+<td>恢复原地址</td>
+</tr>
+<tr>
+<td>拿到了新的 IP</td>
+<td>正常现象，DHCP 按 MAC 分配地址</td>
+<td>不需要处理</td>
+</tr>
+</tbody></table>
+<h3 id="7-7-“无法加载文件，因为在此系统上禁止运行脚本”"><a href="#7-7-“无法加载文件，因为在此系统上禁止运行脚本”" class="headerlink" title="7.7 “无法加载文件，因为在此系统上禁止运行脚本”"></a>7.7 “无法加载文件，因为在此系统上禁止运行脚本”</h3><p><strong>原因</strong>：执行策略为 <code>Restricted</code>。</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">Get-ExecutionPolicy</span> <span class="hljs-literal">-List</span><br></code></pre></td></tr></table></figure>
+
+<p><strong>解决</strong>：只对当前进程放行，不修改全局设置：</p>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell">powershell <span class="hljs-literal">-ExecutionPolicy</span> Bypass <span class="hljs-operator">-File</span> .\<span class="hljs-built_in">set-mac</span>.ps1 <span class="hljs-literal">-Mac</span> <span class="hljs-number">021</span>A2B3C4D5E<br></code></pre></td></tr></table></figure>
+
+<p>从网上下载的脚本带有 Zone.Identifier 标记，在 <code>RemoteSigned</code> 策略下也会被拦截，可以用 <code>Unblock-File .\set-mac.ps1</code> 解除。</p>
+<h2 id="八、方案对比"><a href="#八、方案对比" class="headerlink" title="八、方案对比"></a>八、方案对比</h2><table>
+<thead>
+<tr>
+<th>方式</th>
+<th>需要管理员</th>
+<th>能否脚本化</th>
+<th>依赖显示名</th>
+<th>驱动不支持时</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>设备管理器</td>
+<td>是</td>
+<td>否</td>
+<td>是</td>
+<td>看不到选项</td>
+<td>偶尔改一次</td>
+</tr>
+<tr>
+<td><code>Set-NetAdapterAdvancedProperty</code></td>
+<td>是</td>
+<td>是</td>
+<td>否（按关键字）</td>
+<td>报错（找不到该属性）</td>
+<td>反复测试、批量操作</td>
+</tr>
+<tr>
+<td><code>Set-NetAdapter -MacAddress</code></td>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+<td>通常报错</td>
+<td>一行命令快速修改</td>
+</tr>
+<tr>
+<td>手动写注册表</td>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+<td>可能写了也不生效</td>
+<td>高级选项里没有该项时的兜底</td>
+</tr>
+<tr>
+<td>WLAN 随机硬件地址</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>开关不显示</td>
+<td>只想防止无线网络跟踪</td>
+</tr>
+<tr>
+<td>第三方工具（如 TMAC）</td>
+<td>是</td>
+<td>部分</td>
+<td>否</td>
+<td>同注册表方式</td>
+<td>想要图形化批量管理</td>
+</tr>
+</tbody></table>
+<p>选择建议：</p>
+<ul>
+<li>只改一次：用设备管理器；</li>
+<li>需要反复切换、测试：用第六节的脚本；</li>
+<li>只是为了隐私：用 WLAN 随机硬件地址，不必动驱动设置；</li>
+<li>驱动不支持：先换官方驱动，再考虑注册表方式。</li>
+</ul>
+<h2 id="九、最佳实践"><a href="#九、最佳实践" class="headerlink" title="九、最佳实践"></a>九、最佳实践</h2><ol>
+<li><strong>改之前先记录出厂地址</strong>。<code>PermanentAddress</code> 一般能读到，但在虚拟化环境或某些驱动下可能为空。</li>
+<li><strong>优先使用本地管理地址</strong>（第 2 位为 2&#x2F;6&#x2F;A&#x2F;E）。这类地址不会和任何厂商的出厂地址冲突，有线和无线网卡都能用。</li>
+<li><strong>按 <code>RegistryKeyword</code> 而不是 <code>DisplayName</code> 定位</strong>参数，脚本才能跨语言、跨驱动使用。</li>
+<li><strong>先校验、后提权</strong>。把能在普通权限下完成的检查放在前面，测试阶段就不会误改。</li>
+<li><strong>含中文的 <code>.ps1</code> 一律保存为 UTF-8 with BOM</strong>，以兼容 Windows PowerShell 5.1。</li>
+<li><strong>给出调用示例时同时写上 <code>&amp; &quot;完整路径&quot;</code> 的形式</strong>，用户经常会把脚本放到别的目录、从 <code>system32</code> 运行。</li>
+<li><strong>校验规则与平台限制保持一致</strong>：无线网卡要求 2&#x2F;6&#x2F;A&#x2F;E，有线网卡只要求单播。</li>
+<li><strong>修改后用 <code>getmac /v</code> 交叉验证</strong>，不要只相信 cmdlet 的返回值。</li>
+<li><strong>用 <code>-Name</code> 定位网卡时，确认只匹配到一张</strong>。<code>Get-NetAdapter -Name</code> 支持通配符，写错一个字符就可能把同一个地址写进多张网卡。</li>
+<li><strong>测试和修改分两个窗口</strong>：普通窗口里测试校验逻辑，确认无误后再到管理员窗口执行修改。</li>
+</ol>
+<h2 id="附录-A：常用命令速查"><a href="#附录-A：常用命令速查" class="headerlink" title="附录 A：常用命令速查"></a>附录 A：常用命令速查</h2><p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-comment"># 列出全部网卡及其 MAC（包含隐藏网卡）</span><br><span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-IncludeHidden</span> | <span class="hljs-built_in">Format-Table</span> Name, InterfaceDescription, MacAddress, Status <span class="hljs-literal">-AutoSize</span><br><br><span class="hljs-comment"># 查看当前 MAC 与出厂 MAC</span><br><span class="hljs-built_in">Get-NetAdapter</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> | <span class="hljs-built_in">Format-List</span> MacAddress, PermanentAddress<br><br><span class="hljs-comment"># 查看网卡类型（有线是 802.3，无线是 Native 802.11）</span><br><span class="hljs-built_in">Get-NetAdapter</span> | <span class="hljs-built_in">Format-Table</span> Name, PhysicalMediaType <span class="hljs-literal">-AutoSize</span><br><br><span class="hljs-comment"># 查看覆盖值</span><br><span class="hljs-built_in">Get-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> <span class="hljs-literal">-AllProperties</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress<br><br><span class="hljs-comment"># 设置</span><br><span class="hljs-built_in">Set-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress <span class="hljs-literal">-RegistryValue</span> <span class="hljs-string">&quot;021A2B3C4D5E&quot;</span><br><br><span class="hljs-comment"># 恢复</span><br><span class="hljs-built_in">Get-NetAdapterAdvancedProperty</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span> <span class="hljs-literal">-RegistryKeyword</span> NetworkAddress | <span class="hljs-built_in">Reset-NetAdapterAdvancedProperty</span><br><br><span class="hljs-comment"># 重启网卡</span><br><span class="hljs-built_in">Restart-NetAdapter</span> <span class="hljs-literal">-Name</span> <span class="hljs-string">&quot;以太网&quot;</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs cmd"><span class="hljs-comment">REM cmd 中可用的系统命令</span><br>getmac /v /fo list<br><span class="hljs-built_in">ipconfig</span> /all<br></code></pre></td></tr></table></figure>
+
+<h2 id="附录-B：地址第-2-位速查"><a href="#附录-B：地址第-2-位速查" class="headerlink" title="附录 B：地址第 2 位速查"></a>附录 B：地址第 2 位速查</h2><table>
+<thead>
+<tr>
+<th>第 2 位</th>
+<th>有线网卡</th>
+<th>无线网卡</th>
+<th>类型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0、4、8、C</td>
+<td>可用</td>
+<td>多数驱动不接受</td>
+<td>全球唯一单播</td>
+</tr>
+<tr>
+<td>2、6、A、E</td>
+<td>可用</td>
+<td>可用</td>
+<td>本地管理单播（推荐）</td>
+</tr>
+<tr>
+<td>1、3、5、7、9、B、D、F</td>
+<td>不可用</td>
+<td>不可用</td>
+<td>组播</td>
+</tr>
+</tbody></table>
+<h2 id="附录-C：注册表关键位置"><a href="#附录-C：注册表关键位置" class="headerlink" title="附录 C：注册表关键位置"></a>附录 C：注册表关键位置</h2><table>
+<thead>
+<tr>
+<th>路径 &#x2F; 值</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>HKLM\SYSTEM\CurrentControlSet\Control\Class\&#123;4d36e972-e325-11ce-bfc1-08002be10318&#125;</code></td>
+<td>网络适配器设备类，所有网卡的驱动参数都在这里</td>
+</tr>
+<tr>
+<td><code>...\00XX\DriverDesc</code></td>
+<td>网卡描述，用来识别子键对应哪张网卡</td>
+</tr>
+<tr>
+<td><code>...\00XX\NetCfgInstanceId</code></td>
+<td>网卡 GUID，与 <code>Get-NetAdapter</code> 的 <code>InterfaceGuid</code> 对应</td>
+</tr>
+<tr>
+<td><code>...\00XX\NetworkAddress</code></td>
+<td>MAC 覆盖值，删除即恢复出厂地址</td>
+</tr>
+<tr>
+<td><code>...\00XX\Ndi\params\NetworkAddress</code></td>
+<td>驱动 INF 声明的参数定义，决定设备管理器是否显示该选项</td>
+</tr>
+</tbody></table>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/Windows/" class="category-chain-item">Windows</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/Windows/" class="print-no-link">#Windows</a>
+      
+        <a href="../../../../../tags/MAC%E5%9C%B0%E5%9D%80/" class="print-no-link">#MAC地址</a>
+      
+        <a href="../../../../../tags/%E7%BD%91%E5%8D%A1/" class="print-no-link">#网卡</a>
+      
+        <a href="../../../../../tags/PowerShell/" class="print-no-link">#PowerShell</a>
+      
+        <a href="../../../../../tags/%E6%B3%A8%E5%86%8C%E8%A1%A8/" class="print-no-link">#注册表</a>
+      
+        <a href="../../../../../tags/NDIS/" class="print-no-link">#NDIS</a>
+      
+        <a href="../../../../../tags/%E7%BD%91%E7%BB%9C/" class="print-no-link">#网络</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Windows 修改网卡 MAC 地址完全指南：从 NDIS 原理到一键脚本</div>
+      <div>http://example.com/2026/11/07/windows/windows-change-mac-address/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年11月7日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="../../../16/fmi/model-parameter-calibration-de/" title="仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">仿真模型参数标定的工程实现：目标函数、差分进化与可复现的并行评估</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../../07/22/electron/electron-fastapi-vue3-desktop-delivery/" title="Electron + Vue3 + Python FastAPI 桌面端交付全方案：动态端口、启动门与打包">
+                        <span class="hidden-mobile">Electron + Vue3 + Python FastAPI 桌面端交付全方案：动态端口、启动门与打包</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

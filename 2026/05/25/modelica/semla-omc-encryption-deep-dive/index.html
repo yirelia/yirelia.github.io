@@ -1,0 +1,1418 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="../../../../../img/fluid.png">
+  <link rel="icon" href="../../../../../img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Irelia">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="这篇文章面向需要把一套 Modelica 库交付给客户、但不愿意暴露源码、也不想被 Dymola 锁死的工程师。文章不停留在”用 packagetool 打个包”的层面，而是把 SEMLA 协议、OpenModelica 源码里的 4 个改造点、桥接代码 5 个导出函数契约、完整的运行时调用链全部拆开，配上一个能跑通的 HelloEncrypted demo 与 16 个实测踩坑的回顾。读完之后，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用开源 OpenModelica 加密 Modelica 模型库：SEMLA 规范、源码改造与全流程实操">
+<meta property="og:url" content="http://example.com/2026/05/25/modelica/semla-omc-encryption-deep-dive/index.html">
+<meta property="og:site_name" content="irelia">
+<meta property="og:description" content="这篇文章面向需要把一套 Modelica 库交付给客户、但不愿意暴露源码、也不想被 Dymola 锁死的工程师。文章不停留在”用 packagetool 打个包”的层面，而是把 SEMLA 协议、OpenModelica 源码里的 4 个改造点、桥接代码 5 个导出函数契约、完整的运行时调用链全部拆开，配上一个能跑通的 HelloEncrypted demo 与 16 个实测踩坑的回顾。读完之后，">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-25T07:30:00.000Z">
+<meta property="article:modified_time" content="2026-05-25T07:24:48.317Z">
+<meta property="article:author" content="Irelia">
+<meta property="article:tag" content="Modelica">
+<meta property="article:tag" content="SEMLA">
+<meta property="article:tag" content="OpenModelica">
+<meta property="article:tag" content="模型加密">
+<meta property="article:tag" content="LVE">
+<meta property="article:tag" content="模型保护">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>用开源 OpenModelica 加密 Modelica 模型库：SEMLA 规范、源码改造与全流程实操 - irelia</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="../../../../../css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="../../../../../css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="../../../../../css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="../../../../../js/utils.js" ></script>
+  <script  src="../../../../../js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="../../../../../index.html">
+      <strong>irelia</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../index.html" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="../../../../../about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('../../../../../img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="用开源 OpenModelica 加密 Modelica 模型库：SEMLA 规范、源码改造与全流程实操"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-05-25 15:30" pubdate>
+          2026年5月25日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          7.5k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          63 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">用开源 OpenModelica 加密 Modelica 模型库：SEMLA 规范、源码改造与全流程实操</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <p>这篇文章面向需要把一套 Modelica 库交付给客户、但不愿意暴露源码、也不想被 Dymola 锁死的工程师。文章不停留在”用 packagetool 打个包”的层面，而是把 SEMLA 协议、OpenModelica 源码里的 4 个改造点、桥接代码 5 个导出函数契约、完整的运行时调用链全部拆开，配上一个能跑通的 HelloEncrypted demo 与 16 个实测踩坑的回顾。读完之后，你应该能独立把 OMC 改造出一个带加密能力的 fork，把自家库打包成 <code>.mol</code>，并能在 OMC 和 Dymola 2025x 中跨工具加载。</p>
+<p>文中的源码引用都基于 OpenModelica <code>1.27.0-dev</code> 与 SEMLA <code>master</code>（2026-04 快照），所有命令在 Windows 11 x64 + UCRT64 上实测过。</p>
+<span id="more"></span>
+
+<h2 id="一、问题：保护-Modelica-库源码的真实需求"><a href="#一、问题：保护-Modelica-库源码的真实需求" class="headerlink" title="一、问题：保护 Modelica 库源码的真实需求"></a>一、问题：保护 Modelica 库源码的真实需求</h2><p>商业级 Modelica 库典型有三类资产：</p>
+<ol>
+<li><strong>物理模型方程</strong>：往往是几年实验数据反推出来的经验关系式，是产品的核心壁垒。</li>
+<li><strong>架构封装方式</strong>：怎么把上千个组件拆成清晰的层级，本身就是知识。</li>
+<li><strong>参数与配方</strong>：写在模型默认值里的数字，可能就是工艺秘方。</li>
+</ol>
+<p>把 <code>.mo</code> 直接发给客户等于把这三类资产一起发出去。Modelica 规范在 §18.9 给出了 <code>Protection(access=Access.hide)</code> 注解，但它只是”声明意图”——执行这套语义需要<strong>编译器在加载阶段做访问控制</strong>，并且<strong>源文件必须以加密形式存在</strong>，否则用户用 <code>cat</code> 就能看到方程。</p>
+<p>Modelica 规范没有规定加密算法，每家工具历史上各做各的：</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>加密格式</th>
+<th>互操作性</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Dymola</td>
+<td>私有 <code>.mol</code>（早期）</td>
+<td>只能 Dymola 加载</td>
+</tr>
+<tr>
+<td>Dymola 2025x+</td>
+<td>SEMLA <code>.mol</code></td>
+<td>可读 SEMLA 加密包</td>
+</tr>
+<tr>
+<td>SimulationX</td>
+<td>私有 + SEMLA（2025夏）</td>
+<td>双轨</td>
+</tr>
+<tr>
+<td>OpenModelica</td>
+<td>SEMLA <code>.mol</code></td>
+<td>需要打开 <code>OM_ENABLE_ENCRYPTION</code></td>
+</tr>
+</tbody></table>
+<p>SEMLA 是 Modelon 主导开源的”工具厂商间互通的加密协议”，目前是 Modelica Association 标准化候选（PR #2931）。本质上它定义了两件事：</p>
+<ul>
+<li><strong>MLC 容器</strong>：<code>.mol</code> 文件长什么样、必填字段。</li>
+<li><strong>LVE 协议</strong>：工具进程和库厂商提供的守护进程之间怎么对话。</li>
+</ul>
+<p>下面我们一层一层剥开它。</p>
+<h2 id="二、SEMLA-的两层结构：MLC-LVE"><a href="#二、SEMLA-的两层结构：MLC-LVE" class="headerlink" title="二、SEMLA 的两层结构：MLC + LVE"></a>二、SEMLA 的两层结构：MLC + LVE</h2><p>理解 SEMLA 的关键在于看清它是个”容器格式 + 通信协议”的复合体，而不是单纯的”对称加密文件”。</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs jboss-cli">┌─────────────────────────────────────────────────┐<br>│                工具进程（OMC / Dymola）            │<br>│  ┌───────────────────────────────────────────┐   │<br>│  │  Modelica 解析器（ANTLR3）                  │   │<br>│  └────────────────▲─────────────────▲────────┘   │<br>│                   │ 明文 <span class="hljs-string">.mo</span>         │ 加密 <span class="hljs-string">.moc</span>  │<br>│                   │                  │  → 走协议 │<br>│  ┌────────────────┴─────────────┐    │           │<br>│  │ parseEncryption.c 桥接代码     │    │           │<br>│  └────────────────────┬─────────┘    │           │<br>└─────────────────────┬─┴──────────────┴───────────┘<br>                      │ stdin/stdout pipe + TLS 1.2<br>                      ▼<br>┌─────────────────────────────────────────────────┐<br>│        LVE 守护进程（lve_win64.exe）              │<br>│  - 启动时校验 tool 公钥                            │<br>│  - 收 FILE 命令 → 解密 <span class="hljs-string">.moc</span> → 回明文              │<br>│  - 收 FEATURE 命令 → 查 license                  │<br>│  - 嵌入：LVE 私钥 + tool 公钥白名单 + AES 密钥     │<br>└─────────────────────────────────────────────────┘<br>                      ▲<br>                      │ 嵌进 <span class="hljs-string">.mol</span> 的 <span class="hljs-string">.library/</span><br>                      │<br>              ┌──────────────────┐<br>              │ MyLib.mol <span class="hljs-params">(zip)</span>  │<br>              │ ├── MyLib/       │<br>              │ │   ├─ pkg.moc   │<br>              │ │   └─ <span class="hljs-string">...</span>       │<br>              │ └── <span class="hljs-string">.library/</span>    │<br>              │     └─ lve_*<span class="hljs-string">.exe</span> │<br>              └──────────────────┘<br></code></pre></td></tr></table></figure>
+
+<p>几点反直觉：</p>
+<ul>
+<li><strong>解密不在工具里做</strong>，而是在 <code>.library/</code> 目录里<strong>库厂商自己附带的 LVE 二进制</strong>里做。这意味着每个加密库都自带一份解密器，工具只是消费者。</li>
+<li><strong>工具和 LVE 之间走 TLS 1.2 双向证书认证</strong>。tool 私钥嵌在 OMC 里，LVE 嵌着 tool 公钥白名单。陌生工具连过来直接拒绝。</li>
+<li><strong>明文从不落盘</strong>：LVE 把解密后的 <code>.mo</code> 文本从 stdout 流出去，工具读完直接喂给 ANTLR3。</li>
+</ul>
+<p>这套设计的安全假设是：你逆向出 OMC 也拿不到任何库的私钥（LVE 里的 AES 密钥才是核心），逆向 LVE 才有机会破开它对应的库——而每个厂商可以为每个客户&#x2F;每个版本生成不同的 LVE。</p>
+<h2 id="三、MLC-容器：-mol-文件的内部结构"><a href="#三、MLC-容器：-mol-文件的内部结构" class="headerlink" title="三、MLC 容器：.mol 文件的内部结构"></a>三、MLC 容器：<code>.mol</code> 文件的内部结构</h2><p><code>.mol</code> 就是一个普通的 zip 文件，标准结构如下：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs stylus">HelloEncrypted<span class="hljs-selector-class">.mol</span><br>└── HelloEncrypted/                  顶层包目录（必须和库名一致）<br>    ├── package<span class="hljs-selector-class">.moc</span>                  入口包加密（原 package.mo）<br>    ├── package<span class="hljs-selector-class">.order</span>                明文（元信息，工具靠它列子节点）<br>    ├── PublicAPI<span class="hljs-selector-class">.moc</span><br>    ├── Internal/<br>    │   ├── package<span class="hljs-selector-class">.moc</span><br>    │   ├── package<span class="hljs-selector-class">.order</span><br>    │   └── SecretFormula<span class="hljs-selector-class">.moc</span><br>    ├── Resources/                   资源目录不加密<br>    │   └── images/logo<span class="hljs-selector-class">.png</span><br>    └── .library/                    SEMLA 关键目录<br>        ├── manifest<span class="hljs-selector-class">.xml</span>             库元数据（必填）<br>        ├── lve_win32<span class="hljs-selector-class">.exe</span>            LVE 二进制（按平台）<br>        ├── lve_win64<span class="hljs-selector-class">.exe</span><br>        ├── lve_linux32<br>        └── lve_linux64<br></code></pre></td></tr></table></figure>
+
+<h3 id="manifest-xml-必填字段"><a href="#manifest-xml-必填字段" class="headerlink" title="manifest.xml 必填字段"></a>manifest.xml 必填字段</h3><p class="code-caption" data-lang="xml" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs xml"><span class="hljs-tag">&lt;<span class="hljs-name">archive</span>&gt;</span><br>  <span class="hljs-tag">&lt;<span class="hljs-name">manifest</span> <span class="hljs-attr">version</span>=<span class="hljs-string">&quot;1.0&quot;</span>/&gt;</span><br>  <span class="hljs-tag">&lt;<span class="hljs-name">library</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;HelloEncrypted&quot;</span> <span class="hljs-attr">enabled</span>=<span class="hljs-string">&quot;true&quot;</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Hello Encrypted Library<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">description</span>&gt;</span>Demo of SEMLA encryption.<span class="hljs-tag">&lt;/<span class="hljs-name">description</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">version</span> <span class="hljs-attr">number</span>=<span class="hljs-string">&quot;1.0.0&quot;</span> <span class="hljs-attr">build</span>=<span class="hljs-string">&quot;1&quot;</span> <span class="hljs-attr">date</span>=<span class="hljs-string">&quot;2026-05-25&quot;</span>/&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">language</span> <span class="hljs-attr">version</span>=<span class="hljs-string">&quot;3.2&quot;</span>/&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">copyright</span>&gt;</span>(c) Acme Corp<span class="hljs-tag">&lt;/<span class="hljs-name">copyright</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">license</span>&gt;</span>Proprietary<span class="hljs-tag">&lt;/<span class="hljs-name">license</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">encryption</span>&gt;</span><br>      <span class="hljs-tag">&lt;<span class="hljs-name">executable</span> <span class="hljs-attr">path</span>=<span class="hljs-string">&quot;.library/lve_win64.exe&quot;</span></span><br><span class="hljs-tag">                  <span class="hljs-attr">platform</span>=<span class="hljs-string">&quot;win64&quot;</span></span><br><span class="hljs-tag">                  <span class="hljs-attr">licensing</span>=<span class="hljs-string">&quot;true&quot;</span>/&gt;</span><br>    <span class="hljs-tag">&lt;/<span class="hljs-name">encryption</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">compatibility</span>&gt;</span><br>      <span class="hljs-tag">&lt;<span class="hljs-name">tool</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;OpenModelica&quot;</span> <span class="hljs-attr">minversion</span>=<span class="hljs-string">&quot;1.23.0&quot;</span>/&gt;</span><br>    <span class="hljs-tag">&lt;/<span class="hljs-name">compatibility</span>&gt;</span><br>  <span class="hljs-tag">&lt;/<span class="hljs-name">library</span>&gt;</span><br><span class="hljs-tag">&lt;/<span class="hljs-name">archive</span>&gt;</span><br></code></pre></td></tr></table></figure>
+
+<p>必填项是 <code>library.id</code>、<code>library.version.number</code>、<code>library.language.version</code>。<code>encryption/executable.platform</code> 列出本 <code>.mol</code> 内置了哪些平台的 LVE——跨平台分发就要把所有平台的 LVE 都打进来。</p>
+<h3 id="package-order-为什么不加密"><a href="#package-order-为什么不加密" class="headerlink" title="package.order 为什么不加密"></a>package.order 为什么不加密</h3><p>工具加载时需要先扫一遍包结构，决定加载顺序、解决类引用。如果 <code>package.order</code> 也加密，会陷入”要解密必须先启动 LVE，要启动 LVE 必须先读包结构”的鸡生蛋问题。所以 SEMLA 规定 <code>package.order</code> 与资源文件保持明文。这条规则意味着用户能看到<strong>包的目录树和类名</strong>，只是看不到方程——这正是规范允许的”接口可见，实现不可见”的边界。</p>
+<h2 id="四、SEMLA-协议：一次握手-解密交互"><a href="#四、SEMLA-协议：一次握手-解密交互" class="headerlink" title="四、SEMLA 协议：一次握手 + 解密交互"></a>四、SEMLA 协议：一次握手 + 解密交互</h2><p>LVE 与工具走的是单连接、串行的命令流协议。一次完整加载库的对话：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><code class="hljs nix">工具 (OMC)                               LVE (lve_win64.exe)<br>   │                                          │<br>   │ ── 启动子进程 <span class="hljs-operator">+</span> TLS <span class="hljs-number">1.2</span> 双向证书握手 ──▶  │<br>   │                                          │<br>   │ ── VERSION <span class="hljs-number">1</span> <span class="hljs-number">1</span> ─────────────────────▶  │<br>   │                                          │<br>   │ ◀── VERSION <span class="hljs-number">1</span> <span class="hljs-number">1</span>（或 NO <span class="hljs-symbol">&lt;reason&gt;</span>） ─────  │<br>   │                                          │<br>   │ ── LIB <span class="hljs-symbol">/tmp/HE/HelloEncrypted</span> ──────▶  │<br>   │                                          │<br>   │ ◀── YES ─────────────────────────────  │<br>   │                                          │<br>   │ ── FEATURE Standard ─────────────────▶  │<br>   │                                          │<br>   │ ◀── YES ─────────────────────────────  │<br>   │                                          │<br>   │ ── FILE PublicAPI.moc ───────────────▶  │<br>   │                                          │<br>   │ ◀── FILECONT <span class="hljs-symbol">&lt;length&gt;</span>\n<span class="hljs-symbol">&lt;bytes&gt;</span> ────────  │<br>   │                                          │<br>   │ ── FILE Internal<span class="hljs-symbol">/SecretFormula.moc</span> ──▶  │<br>   │                                          │<br>   │ ◀── FILECONT <span class="hljs-symbol">&lt;length&gt;</span>\n<span class="hljs-symbol">&lt;bytes&gt;</span> ────────  │<br>   │                                          │<br>   │ ── (关闭 pipe，LVE 退出) ─────────────▶  │<br>   ▼                                          ▼<br></code></pre></td></tr></table></figure>
+
+<h3 id="已实现-vs-规范定义"><a href="#已实现-vs-规范定义" class="headerlink" title="已实现 vs 规范定义"></a>已实现 vs 规范定义</h3><p>SEMLA 文档里规定了一组命令，但开源实现没全做。实际状态：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>VERSION</code> <code>LIB</code> <code>FEATURE</code> <code>RETURNFEATURE</code> <code>FILE</code> <code>FILECONTENT</code></td>
+<td>已实现</td>
+</tr>
+<tr>
+<td><code>TOOLS</code> <code>LICENSEINFO</code> <code>LICENSE</code>&#x2F;<code>RETURNLICENSE</code></td>
+<td>仅规范定义，未实现</td>
+</tr>
+</tbody></table>
+<p>特别注意 <code>LICENSE</code>（整包许可证）这条没实现，意味着 <code>mlle_tool_license()</code> 函数在 SEMLA 当前 tool 端 API 里<strong>不存在</strong>。下面写桥接代码时这个坑必须知道，否则会编不过。</p>
+<h3 id="错误响应"><a href="#错误响应" class="headerlink" title="错误响应"></a>错误响应</h3><p>LVE 在任何时候都可以发：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight subunit"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs subunit"><span class="hljs-keyword">ERROR </span>&lt;code&gt; &lt;length&gt;\n&lt;msg&gt;<br></code></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>code</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>不认识的命令</td>
+</tr>
+<tr>
+<td>2</td>
+<td>协议版本太低</td>
+</tr>
+<tr>
+<td>3</td>
+<td>LVE 不处理 licensing</td>
+</tr>
+<tr>
+<td>4</td>
+<td>文件未找到</td>
+</tr>
+<tr>
+<td>5</td>
+<td>工具无权解密此文件</td>
+</tr>
+<tr>
+<td>6</td>
+<td>文件 I&#x2F;O 错误</td>
+</tr>
+<tr>
+<td>7</td>
+<td>License 错误</td>
+</tr>
+<tr>
+<td>8</td>
+<td>其他</td>
+</tr>
+</tbody></table>
+<h2 id="五、密钥架构：3-组-4-类密钥"><a href="#五、密钥架构：3-组-4-类密钥" class="headerlink" title="五、密钥架构：3 组 4 类密钥"></a>五、密钥架构：3 组 4 类密钥</h2><p>很多人第一次接触 SEMLA 会被密钥搞晕。其实就 4 类，分工很清晰：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>角色</th>
+<th>嵌入位置</th>
+<th>数量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tool 私钥</td>
+<td>工具向 LVE 证身份的 SSL 私钥</td>
+<td>工具二进制（OMC &#x2F; Dymola）</td>
+<td>每个工具一对</td>
+</tr>
+<tr>
+<td>Tool 公钥</td>
+<td>LVE 端的工具白名单</td>
+<td>每个 LVE 二进制</td>
+<td>LVE 嵌入所有受信工具公钥</td>
+</tr>
+<tr>
+<td>LVE 私钥</td>
+<td>加&#x2F;解密 <code>.moc</code> 内容的 RSA 私钥</td>
+<td>packagetool + LVE 都嵌入同一份</td>
+<td>每批 MLC 一对</td>
+</tr>
+<tr>
+<td>Randomizer Key</td>
+<td>把上述密钥在二进制里再混淆</td>
+<td>packagetool &#x2F; LVE &#x2F; Tool 都用同一份</td>
+<td>每批一份</td>
+</tr>
+</tbody></table>
+<p><strong>关键不变式</strong>：同一批 <code>.mol</code> 用的 packagetool 与 LVE 必须用相同的 SSL 密钥 + 同一 Randomizer Key 编出来，否则跨设备运行时一定解密失败（这就是踩坑里的”P15 packagetool&#x2F;LVE 来自不同 SEMLA build”）。</p>
+<p>工程上的含义：</p>
+<ul>
+<li><strong>demo 阶段</strong>：3 个密钥目录扔仓库里没所谓。</li>
+<li><strong>生产阶段</strong>：移到公司 Vault，CI 构建时短期 token 拉取。<strong>丢了 &#x3D; 你已发出的所有 <code>.mol</code> 永久作废</strong>——这是事实上的”加密自杀”。</li>
+</ul>
+<h2 id="六、OpenModelica-集成全景：4-个改造点"><a href="#六、OpenModelica-集成全景：4-个改造点" class="headerlink" title="六、OpenModelica 集成全景：4 个改造点"></a>六、OpenModelica 集成全景：4 个改造点</h2><p>OpenModelica 主干<strong>默认不带加密支持</strong>，上游 <code>OM_ENABLE_ENCRYPTION</code> 选项是 <code>OFF</code>，并且代码里也只有占位的 <code>if</code> 块。要让 OMC 真正能加载 <code>.mol</code>，需要在它的 fork 里加 4 处改动：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs stylus">OpenModelica/<br>├── OMCompiler/Parser/<br>│   ├── CMakeLists<span class="hljs-selector-class">.txt</span>      ← 改动 <span class="hljs-number">3</span>：加 SEMLA 链接<br>│   └── parse<span class="hljs-selector-class">.c</span>             ← 改动 <span class="hljs-number">4</span>：加 <span class="hljs-selector-class">.moc</span> 分支<br>├── CMakeLists<span class="hljs-selector-class">.txt</span>          ← 改动 <span class="hljs-number">1</span>：OM_ENABLE_ENCRYPTION 选项<br>├── <span class="hljs-selector-class">.gitignore</span>              ← 改动 <span class="hljs-number">2</span>：删除 /OMEncryption/ 忽略<br>└── OMEncryption/           ← 新增子目录<br>    ├── CMakeLists<span class="hljs-selector-class">.txt</span>      ← 必须存在（哪怕只是占位）<br>    ├── <span class="hljs-number">3</span>rdParty/<br>    │   └── SEMLA/          ← SEMLA 源码（submodule）<br>    └── Parser/<br>        ├── parseEncryption<span class="hljs-selector-class">.c</span>   ← 桥接代码（<span class="hljs-number">5</span> 个导出函数）<br>        ├── mlle_*<span class="hljs-selector-class">.h</span>            ← 从 SEMLA install/include 复制<br>        ├── mlle_portability<span class="hljs-selector-class">.h</span><br>        └── mlle_ssl.h<br></code></pre></td></tr></table></figure>
+
+<h3 id="改动-1：顶层-CMakeLists-txt"><a href="#改动-1：顶层-CMakeLists-txt" class="headerlink" title="改动 1：顶层 CMakeLists.txt"></a>改动 1：顶层 CMakeLists.txt</h3><p>如果上游已经有 <code>OM_ENABLE_ENCRYPTION</code>（多数现代版本有），就什么都不改，构建时显式开：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">cmake -S . -B build_cmake -DOM_ENABLE_ENCRYPTION=ON ...<br></code></pre></td></tr></table></figure>
+
+<p>注意<strong>不要</strong>把默认值改成 ON——和上游 merge 时冲突最小。</p>
+<h3 id="改动-2：-gitignore"><a href="#改动-2：-gitignore" class="headerlink" title="改动 2：.gitignore"></a>改动 2：.gitignore</h3><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">grep -n <span class="hljs-string">&quot;OMEncryption&quot;</span> .gitignore<br></code></pre></td></tr></table></figure>
+
+<p>如果有 <code>/OMEncryption/</code> 行，删掉。否则你 push 的代码 CI 拉下来没有桥接代码。</p>
+<h3 id="改动-3：OMCompiler-Parser-CMakeLists-txt"><a href="#改动-3：OMCompiler-Parser-CMakeLists-txt" class="headerlink" title="改动 3：OMCompiler&#x2F;Parser&#x2F;CMakeLists.txt"></a>改动 3：OMCompiler&#x2F;Parser&#x2F;CMakeLists.txt</h3><p>定位 <code>if(OM_ENABLE_ENCRYPTION)</code> 块，完整替换为：</p>
+<p class="code-caption" data-lang="cmake" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs cmake"><span class="hljs-keyword">if</span>(OM_ENABLE_ENCRYPTION)<br>  <span class="hljs-keyword">if</span>(WIN32)<br>    <span class="hljs-keyword">set</span>(extra_ssl_libs crypt32 ws2_32)<br>  <span class="hljs-keyword">else</span>()<br>    <span class="hljs-keyword">set</span>(extra_ssl_libs dl pthread)<br>  <span class="hljs-keyword">endif</span>()<br><br>  <span class="hljs-keyword">target_include_directories</span>(omparse PUBLIC<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/Parser<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/<span class="hljs-number">3</span>rdParty/SEMLA/src/common<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/<span class="hljs-number">3</span>rdParty/SEMLA/src/tool<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/<span class="hljs-number">3</span>rdParty/SEMLA/build/<span class="hljs-keyword">install</span>/<span class="hljs-keyword">include</span>)<br><br>  <span class="hljs-keyword">target_compile_definitions</span>(omparse PUBLIC OM_ENABLE_ENCRYPTION)<br><br>  <span class="hljs-comment"># 链接顺序必须是：libtool → libssl → libcrypto → 系统库</span><br>  <span class="hljs-keyword">target_link_libraries</span>(omparse PUBLIC<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/<span class="hljs-number">3</span>rdParty/SEMLA/build/<span class="hljs-keyword">install</span>/lib/libtool.a<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/<span class="hljs-number">3</span>rdParty/SEMLA/build/<span class="hljs-keyword">install</span>/lib/libssl.a<br>    <span class="hljs-variable">$&#123;CMAKE_SOURCE_DIR&#125;</span>/OMEncryption/<span class="hljs-number">3</span>rdParty/SEMLA/build/<span class="hljs-keyword">install</span>/lib/libcrypto.a<br>    <span class="hljs-variable">$&#123;extra_ssl_libs&#125;</span>)<br><span class="hljs-keyword">endif</span>()<br></code></pre></td></tr></table></figure>
+
+<p>几个细节：</p>
+<ul>
+<li><code>libtool.a</code> 是 SEMLA 的 tool-side 静态库，<strong>不是</strong> GNU libtool。每次有人看到 <code>libtool</code> 都会犹豫一下，记一下这个名字。</li>
+<li>链接顺序固定：<code>libtool</code> → <code>libssl</code> → <code>libcrypto</code> → 系统库。反了就是一堆未定义符号。</li>
+<li><strong>不要</strong>用 <code>find_package(OpenSSL)</code>——会拿系统 OpenSSL，跟 SEMLA 自带的版本不同，链接出双套符号。</li>
+<li>上游原始代码可能是 <code>target_link_libraries(omparse PUBLIC om::encrypt::libtool)</code>，这个 target 不存在，要完整替换。</li>
+</ul>
+<h3 id="改动-4：OMCompiler-Parser-parse-c"><a href="#改动-4：OMCompiler-Parser-parse-c" class="headerlink" title="改动 4：OMCompiler&#x2F;Parser&#x2F;parse.c"></a>改动 4：OMCompiler&#x2F;Parser&#x2F;parse.c</h3><p>两块小改动。第一块是头部 include 桥接代码（约 395 行附近）：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> OM_ENABLE_ENCRYPTION</span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;../../OMEncryption/Parser/parseEncryption.c&quot;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br></code></pre></td></tr></table></figure>
+
+<p>这里 OMC 用了一个非常奇特的写法：<strong>直接 include <code>.c</code> 源文件</strong>，而不是头文件加链接。这是上游既定模式，目的是避免增加新的链接 target、保持 build graph 不变。spec 里禁止改它。</p>
+<p>第二块是 <code>.moc</code> 后缀分支（约 432 行附近），把原来的”直接报错”改为”调用 LVE 解密、走 ANTLR 解析”：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> OM_ENABLE_ENCRYPTION</span><br>  <span class="hljs-keyword">if</span> (len &gt; <span class="hljs-number">3</span> &amp;&amp; <span class="hljs-number">0</span> == <span class="hljs-built_in">strcmp</span>(fileName + len - <span class="hljs-number">4</span>, <span class="hljs-string">&quot;.moc&quot;</span>)) &#123;<br>    <span class="hljs-type">char</span> *output_data = parseEncryptedFile(<br>        fileName, langStd, strict, runningTestsuite, libraryPath, lveInstance);<br>    <span class="hljs-keyword">if</span> (output_data != <span class="hljs-literal">NULL</span>) &#123;<br>      fName = (pANTLR3_UINT8) fileName;<br><span class="hljs-meta">#<span class="hljs-keyword">if</span> defined(ANTLR_C_VERSION_3_2)</span><br>      input = antlr3NewAsciiStringInPlaceStream(<br>          (pANTLR3_UINT8) output_data, <span class="hljs-built_in">strlen</span>(output_data), fName);<br><span class="hljs-meta">#<span class="hljs-keyword">elif</span> defined(ANTLR_C_VERSION_3_4)</span><br>      input = antlr3StringStreamNew(<br>          (pANTLR3_UINT8) output_data, ANTLR3_ENC_8BIT, <span class="hljs-built_in">strlen</span>(output_data), fName);<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>      <span class="hljs-keyword">if</span> (input == <span class="hljs-literal">NULL</span>) &#123;<br>        <span class="hljs-built_in">fprintf</span>(<span class="hljs-built_in">stderr</span>, <span class="hljs-string">&quot;Unable to open file %s\n&quot;</span>, members.filename_C);<br>        <span class="hljs-built_in">free</span>(output_data);<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;<br>      &#125;<br>      <span class="hljs-type">void</span> *result = parseStream(input, langStd, strict, runningTestsuite);<br>      <span class="hljs-built_in">free</span>(output_data);     <span class="hljs-comment">/* 关键：parseStream 之后才能 free */</span><br>      <span class="hljs-keyword">return</span> result;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>      <span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;<br>    &#125;<br>  &#125;<br><span class="hljs-meta">#<span class="hljs-keyword">else</span></span><br>  <span class="hljs-keyword">if</span> (len &gt; <span class="hljs-number">3</span> &amp;&amp; <span class="hljs-number">0</span> == <span class="hljs-built_in">strcmp</span>(fileName + len - <span class="hljs-number">4</span>, <span class="hljs-string">&quot;.moc&quot;</span>)) &#123;<br>    c_add_message(<span class="hljs-literal">NULL</span>, <span class="hljs-number">-1</span>, ErrorType_scripting, ErrorLevel_error,<br>        gettext(<span class="hljs-string">&quot;Cannot load the encrypted package. &quot;</span><br>                <span class="hljs-string">&quot;OpenModelica is not compiled with encryption support.&quot;</span>),<br>        <span class="hljs-literal">NULL</span>, <span class="hljs-number">0</span>);<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;<br>  &#125;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br></code></pre></td></tr></table></figure>
+
+<p>四个非平凡点必须记住：</p>
+<ol>
+<li>**不能直接 <code>return parseEncryptedFile(...)</code>**。它返回 <code>char *</code>（明文 buffer），不是 parse tree。必须先建 ANTLR 流，再 <code>parseStream</code>。</li>
+<li><strong>ANTLR 函数名按版本宏切换</strong>。<code>antlr3NewAsciiStringCopyStream</code> 在 3.2 和 3.4 都不存在，链接时解析到错误地址，运行时 segfault。</li>
+<li><strong><code>free(output_data)</code> 必须在 <code>parseStream</code> 之后</strong>。ANTLR 文档说”copy stream”，实测是”持有引用直到 parseStream 完成”。提前 free 段错误。</li>
+<li><strong>大库 OOM 风险</strong>：上一代桥接代码忘 free 这个 buffer，加载 Modelica Standard Library（几百个 <code>.moc</code>）OOM。新写一定要 free。</li>
+</ol>
+<h2 id="七、桥接代码-parseEncryption-c：5-个导出函数契约"><a href="#七、桥接代码-parseEncryption-c：5-个导出函数契约" class="headerlink" title="七、桥接代码 parseEncryption.c：5 个导出函数契约"></a>七、桥接代码 parseEncryption.c：5 个导出函数契约</h2><p>桥接代码本身是个 ~300 行的 C 文件。它的工作只有一个：<strong>把 OMC 的解析钩子翻译成 SEMLA 的 <code>mlle_tool_*</code> 调用</strong>。SEMLA 给的 tool 端 API 已经把协议状态机做好了，桥接代码不实现协议，只搬数据。</p>
+<h3 id="全局状态"><a href="#全局状态" class="headerlink" title="全局状态"></a>全局状态</h3><p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* parseEncryption.c 文件级 static */</span><br><span class="hljs-type">static</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_connections</span> *<span class="hljs-title">lve</span> =</span> <span class="hljs-literal">NULL</span>;<br></code></pre></td></tr></table></figure>
+
+<p>整个 OMC 进程同时<strong>只能</strong>有一个 LVE 连接（SEMLA 的 <code>mlle_*</code> 用了文件级 static）。所以 OMC 的并行解析在看到 <code>lveInstance != NULL</code> 时<strong>强制单线程</strong>——这是上游 <code>parallelParseFilesWork</code> 的逻辑，不要去改。</p>
+<h3 id="函数-1：startLibraryVendorExecutableImpl"><a href="#函数-1：startLibraryVendorExecutableImpl" class="headerlink" title="函数 1：startLibraryVendorExecutableImpl"></a>函数 1：startLibraryVendorExecutableImpl</h3><p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/**</span><br><span class="hljs-comment"> * 启动 .library/lve_&lt;platform&gt; 子进程，做 TLS 握手 + 协议协商 + LIB 命令。</span><br><span class="hljs-comment"> *</span><br><span class="hljs-comment"> * @param path        解压后顶层包目录的 UTF-8 路径</span><br><span class="hljs-comment"> *                    例：/tmp/HelloEncrypted/HelloEncrypted</span><br><span class="hljs-comment"> * @param lveInstance OUT 参数。成功时 *lveInstance 指向 mlle_connections；</span><br><span class="hljs-comment"> *                    失败时 *lveInstance = NULL</span><br><span class="hljs-comment"> * @return 1 = 成功，0 = 失败</span><br><span class="hljs-comment"> */</span><br><span class="hljs-type">int</span> <span class="hljs-title function_">startLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *path, <span class="hljs-type">void</span> **lveInstance)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>实际实现里 SEMLA 提供了一个高层 API <code>mlle_start_executable</code> 一行搞定 spawn + ssl + handshake，所以桥接代码很短：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">startLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *path, <span class="hljs-type">void</span> **lveInstance)</span> &#123;<br>    <span class="hljs-type">char</span> lve_path[PATH_MAX];<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_error</span> *<span class="hljs-title">error</span> =</span> <span class="hljs-literal">NULL</span>;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_connections</span> *<span class="hljs-title">conn</span> =</span> <span class="hljs-literal">NULL</span>;<br><br>    <span class="hljs-comment">/* 1. 拼接 lve 路径 */</span><br>    <span class="hljs-built_in">snprintf</span>(lve_path, <span class="hljs-keyword">sizeof</span>(lve_path), <span class="hljs-string">&quot;%s/.library/%s&quot;</span>, path, LVE_NAME);<br><br><span class="hljs-meta">#<span class="hljs-keyword">ifndef</span> _WIN32</span><br>    <span class="hljs-comment">/* Linux/macOS 需要先加执行位 */</span><br>    chmod(lve_path, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IXOTH);<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br><br>    <span class="hljs-comment">/* 2. spawn + TLS + handshake 一步到位 */</span><br>    conn = mlle_start_executable(lve_path, &amp;error);<br>    <span class="hljs-keyword">if</span> (conn == <span class="hljs-literal">NULL</span>) &#123;<br>        ENC_LOG_ERROR(<span class="hljs-string">&quot;Failed to start LVE: %s&quot;</span>,<br>                      mlle_error_get_message(error));<br>        mlle_error_free(&amp;error);<br>        *lveInstance = <span class="hljs-literal">NULL</span>;<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>    &#125;<br><br>    <span class="hljs-comment">/* 3. 协议版本协商 (major=1, minor=1) */</span><br>    <span class="hljs-keyword">if</span> (!mlle_tool_version(conn, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, &amp;error)) &#123;<br>        ENC_LOG_ERROR(<span class="hljs-string">&quot;VERSION failed: %s&quot;</span>,<br>                      mlle_error_get_message(error));<br>        mlle_error_free(&amp;error);<br>        mlle_connections_free(&amp;conn);<br>        *lveInstance = <span class="hljs-literal">NULL</span>;<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>    &#125;<br><br>    <span class="hljs-comment">/* 4. LIB 命令：传顶层包目录 */</span><br>    <span class="hljs-keyword">if</span> (!mlle_tool_libpath(conn, path, &amp;error)) &#123;<br>        ENC_LOG_ERROR(<span class="hljs-string">&quot;LIB failed: %s&quot;</span>,<br>                      mlle_error_get_message(error));<br>        mlle_error_free(&amp;error);<br>        mlle_connections_free(&amp;conn);<br>        *lveInstance = <span class="hljs-literal">NULL</span>;<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>    &#125;<br><br>    *lveInstance = conn;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>关键细节：</p>
+<ul>
+<li><code>mlle_tool_libpath</code> 传<strong>顶层包目录</strong>（含 <code>.library</code> 子目录的父目录），不是 <code>.library</code> 本身。这是看 SEMLA <code>src/test/test_tool.c</code> 第 156 行确认的。</li>
+<li>失败路径必须把已分配的 conn 释放——否则后续 retry 会僵死。</li>
+<li><code>mlle_error</code> 是 SEMLA 的链式错误对象，每次调用后都要 <code>mlle_error_free</code> 否则内存泄漏。</li>
+</ul>
+<h3 id="函数-2：parseEncryptedFile"><a href="#函数-2：parseEncryptedFile" class="headerlink" title="函数 2：parseEncryptedFile"></a>函数 2：parseEncryptedFile</h3><p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">char</span> *<span class="hljs-title function_">parseEncryptedFile</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *fileName,</span><br><span class="hljs-params">                         <span class="hljs-type">int</span> langStd,</span><br><span class="hljs-params">                         <span class="hljs-type">int</span> strict,</span><br><span class="hljs-params">                         <span class="hljs-type">int</span> runningTestsuite,</span><br><span class="hljs-params">                         <span class="hljs-type">const</span> <span class="hljs-type">char</span> *libraryPath,</span><br><span class="hljs-params">                         <span class="hljs-type">void</span> *lveInstance)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>主体：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">char</span> *<span class="hljs-title function_">parseEncryptedFile</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *fileName, <span class="hljs-type">int</span> langStd, <span class="hljs-type">int</span> strict,</span><br><span class="hljs-params">                        <span class="hljs-type">int</span> runningTestsuite, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *libraryPath,</span><br><span class="hljs-params">                        <span class="hljs-type">void</span> *lveInstance)</span> &#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_connections</span> *<span class="hljs-title">conn</span> =</span> (<span class="hljs-keyword">struct</span> mlle_connections *)lveInstance;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_file_contents</span> *<span class="hljs-title">file</span> =</span> <span class="hljs-literal">NULL</span>;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_error</span> *<span class="hljs-title">error</span> =</span> <span class="hljs-literal">NULL</span>;<br>    <span class="hljs-type">char</span> *raw = <span class="hljs-literal">NULL</span>;<br><br>    <span class="hljs-comment">/* 1. 计算相对路径，统一为 &#x27;/&#x27; 分隔 */</span><br>    <span class="hljs-type">char</span> relpath[PATH_MAX];<br>    strip_prefix_and_normalize(fileName, libraryPath, relpath);<br><br>    <span class="hljs-comment">/* 2. 请求 LVE 解密 */</span><br>    file = mlle_tool_file(conn, relpath, &amp;error);<br>    <span class="hljs-keyword">if</span> (file == <span class="hljs-literal">NULL</span>) &#123;<br>        ENC_LOG_ERROR(<span class="hljs-string">&quot;FILE %s failed: %s&quot;</span>, relpath,<br>                      mlle_error_get_message(error));<br>        mlle_error_free(&amp;error);<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;<br>    &#125;<br><br>    <span class="hljs-comment">/* 3. 读出明文 */</span><br>    <span class="hljs-type">size_t</span> len = mlle_tool_get_file_size(file);<br>    raw = (<span class="hljs-type">char</span> *)<span class="hljs-built_in">malloc</span>(len + <span class="hljs-number">1</span>);<br>    <span class="hljs-keyword">if</span> (raw == <span class="hljs-literal">NULL</span>) &#123;<br>        mlle_file_contents_free(&amp;file);<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;<br>    &#125;<br>    mlle_tool_read_bytes(file, raw, len);<br>    raw[len] = <span class="hljs-string">&#x27;\0&#x27;</span>;<br><br>    <span class="hljs-comment">/* 4. 释放 file 句柄 */</span><br>    mlle_file_contents_free(&amp;file);<br><br>    <span class="hljs-keyword">return</span> raw;   <span class="hljs-comment">/* 调用方 free */</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>注意 <code>mlle_tool_file</code> 返回的不是 bytes 而是不透明句柄；要分三步：<code>get_file_size</code> → <code>read_bytes</code> → <code>mlle_file_contents_free</code>。早期的桥接代码版本忽略了 free，导致大库 OOM。</p>
+<p>Windows 上的路径要把反斜杠转成 <code>/</code>，LVE 不认 <code>\</code>。<code>strip_prefix_and_normalize</code> 是个工具函数，负责做前缀剥离和正斜杠转换。</p>
+<h3 id="函数-3-4：feature-license-检查"><a href="#函数-3-4：feature-license-检查" class="headerlink" title="函数 3 &amp; 4：feature &#x2F; license 检查"></a>函数 3 &amp; 4：feature &#x2F; license 检查</h3><p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">checkLVEToolFeatureImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *feature)</span> &#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_connections</span> *<span class="hljs-title">conn</span> =</span> (<span class="hljs-keyword">struct</span> mlle_connections *)lveInstance;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_error</span> *<span class="hljs-title">error</span> =</span> <span class="hljs-literal">NULL</span>;<br>    <span class="hljs-type">int</span> ok = mlle_tool_feature(conn, feature, &amp;error);<br>    <span class="hljs-keyword">if</span> (!ok &amp;&amp; error) &#123;<br>        ENC_LOG_ERROR(<span class="hljs-string">&quot;FEATURE %s denied: %s&quot;</span>, feature,<br>                      mlle_error_get_message(error));<br>    &#125;<br>    mlle_error_free(&amp;error);<br>    <span class="hljs-keyword">return</span> ok ? <span class="hljs-number">1</span> : <span class="hljs-number">0</span>;<br>&#125;<br><br><span class="hljs-type">int</span> <span class="hljs-title function_">checkLVEToolLicenseImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *packageName)</span> &#123;<br>    <span class="hljs-comment">/* SEMLA tool 端 API 没有 mlle_tool_license（规范有，实现没做）。</span><br><span class="hljs-comment">     * 永远返回 1，让上层走 feature 检查。 */</span><br>    (<span class="hljs-type">void</span>)lveInstance;<br>    (<span class="hljs-type">void</span>)packageName;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><code>checkLVEToolLicenseImpl</code> 是这套桥接代码里最容易写错的：旧团队的文档写它要调 <code>mlle_tool_license</code>，但这个函数在 SEMLA 当前 master 里<strong>根本不存在</strong>。直接返回 1 是正确做法。</p>
+<h3 id="函数-5：stopLibraryVendorExecutableImpl"><a href="#函数-5：stopLibraryVendorExecutableImpl" class="headerlink" title="函数 5：stopLibraryVendorExecutableImpl"></a>函数 5：stopLibraryVendorExecutableImpl</h3><p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">stopLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance)</span> &#123;<br>    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mlle_connections</span> *<span class="hljs-title">conn</span> =</span> (<span class="hljs-keyword">struct</span> mlle_connections *)lveInstance;<br>    <span class="hljs-keyword">if</span> (conn == <span class="hljs-literal">NULL</span>) <span class="hljs-keyword">return</span>;<br>    mlle_connections_free(&amp;conn);    <span class="hljs-comment">/* SEMLA 内部完成关 pipe / waitpid / free */</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>注意签名：参数是 <code>void *</code>（不是 <code>void **</code>）。这点踩过坑——OMC 的 <code>.mo</code> 层对 stop&#x2F;checkLicense&#x2F;checkFeature 的 <code>lveInstance</code> 参数是 <code>input Option&lt;Integer&gt;</code>，按值传递；只有 <code>start</code> 的 <code>lveInstance</code> 是 output 参数，才是 <code>void **</code>。把 stop 写成 <code>void **</code> 会立刻 segfault。</p>
+<h3 id="函数签名总览"><a href="#函数签名总览" class="headerlink" title="函数签名总览"></a>函数签名总览</h3><table>
+<thead>
+<tr>
+<th>函数</th>
+<th>lveInstance 类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>startLibraryVendorExecutableImpl</code></td>
+<td><code>void **</code></td>
+<td>OUT 参数</td>
+</tr>
+<tr>
+<td><code>parseEncryptedFile</code></td>
+<td><code>void *</code></td>
+<td>IN</td>
+</tr>
+<tr>
+<td><code>checkLVEToolLicenseImpl</code></td>
+<td><code>void *</code></td>
+<td>IN</td>
+</tr>
+<tr>
+<td><code>checkLVEToolFeatureImpl</code></td>
+<td><code>void *</code></td>
+<td>IN</td>
+</tr>
+<tr>
+<td><code>stopLibraryVendorExecutableImpl</code></td>
+<td><code>void *</code></td>
+<td>IN</td>
+</tr>
+</tbody></table>
+<p>只有第一个是双指针。这条规则违反就 crash。</p>
+<h2 id="八、完整链路：从-loadEncryptedPackage-到方程求解"><a href="#八、完整链路：从-loadEncryptedPackage-到方程求解" class="headerlink" title="八、完整链路：从 loadEncryptedPackage 到方程求解"></a>八、完整链路：从 loadEncryptedPackage 到方程求解</h2><p>把上面的零件拼起来。一次 <code>loadEncryptedPackage(&quot;Foo.mol&quot;)</code> 在 OMC 内部走的完整路径：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight isbl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><code class="hljs isbl"><span class="hljs-function"><span class="hljs-title">loadEncryptedPackage</span>(<span class="hljs-string">&quot;Foo.mol&quot;</span>)</span><br>  └─ <span class="hljs-variable">CevalScript.mo</span><br>       ├─ <span class="hljs-function"><span class="hljs-title">unZipEncryptedPackageAndCheckFile</span>()       ;; 解压 .mol 到临时目录</span><br><span class="hljs-function">       └─ <span class="hljs-title">loadFile</span>() → <span class="hljs-title">loadModel</span>() → <span class="hljs-title">loadModel1</span>()</span><br>            └─ <span class="hljs-variable">ClassLoader.loadClassFromMp</span>()<br>                 ├─ <span class="hljs-variable">Parser.startLibraryVendorExecutable</span>()<br>                 │    └─ <span class="hljs-variable">external</span> <span class="hljs-string">&quot;C&quot;</span>: <span class="hljs-function"><span class="hljs-title">startLibraryVendorExecutableImpl</span>()</span><br>                 │         ├─ <span class="hljs-function"><span class="hljs-title">mlle_start_executable</span>(<span class="hljs-variable">lve_path</span>)</span><br>                 │         │    ├─ <span class="hljs-variable">fork</span>/<span class="hljs-variable">spawn</span> 子进程<br>                 │         │    ├─ <span class="hljs-function"><span class="hljs-title">ssl_setup_tool</span>()</span><br>                 │         │    └─ <span class="hljs-function"><span class="hljs-title">tool_perform_handshake</span>()</span><br>                 │         ├─ <span class="hljs-function"><span class="hljs-title">mlle_tool_version</span>()</span><br>                 │         └─ <span class="hljs-function"><span class="hljs-title">mlle_tool_libpath</span>()</span><br>                 │<br>                 ├─ <span class="hljs-variable">Parser.parallelParseFiles</span>()<br>                 │    └─ 检查 <span class="hljs-variable">lveInstance</span> ≠ <span class="hljs-variable"><span class="hljs-literal">NULL</span></span> → 强制单线程<br>                 │         <span class="hljs-function"><span class="hljs-title">loadFileThread</span>() → <span class="hljs-title">parallelParseFilesWork</span>()</span><br>                 │              → <span class="hljs-variable">Parser.parse</span>() → <span class="hljs-function"><span class="hljs-title">parsebuiltin</span>()</span><br>                 │              → <span class="hljs-variable">ParserExt.parse</span>() → <span class="hljs-function"><span class="hljs-title">ParserExt_parse</span>()</span><br>                 │              → <span class="hljs-function"><span class="hljs-title">parseFile</span>() → 检测 .moc 后缀 → <span class="hljs-title">parseEncryptedFile</span>()</span><br>                 │                   ├─ <span class="hljs-function"><span class="hljs-title">mlle_tool_file</span>()           ;; 请求解密</span><br><span class="hljs-function">                 │                   ├─ <span class="hljs-title">mlle_tool_get_file_size</span>()</span><br>                 │                   └─ <span class="hljs-function"><span class="hljs-title">mlle_tool_read_bytes</span>()</span><br>                 │                        ↓ 明文 <span class="hljs-variable">buffer</span><br>                 │                        <span class="hljs-function"><span class="hljs-title">antlr3StringStreamNew</span>()</span><br>                 │                        <span class="hljs-function"><span class="hljs-title">parseStream</span>() → <span class="hljs-variable">Absyn.Program</span></span><br><span class="hljs-function">                 │                        <span class="hljs-title">free</span>(<span class="hljs-variable">output_data</span>)</span><br>                 │<br>                 └─ <span class="hljs-variable">Parser.stopLibraryVendorExecutable</span>()<br>                      └─ <span class="hljs-function"><span class="hljs-title">stopLibraryVendorExecutableImpl</span>()</span><br>                           └─ <span class="hljs-function"><span class="hljs-title">mlle_connections_free</span>()</span><br>                                 ├─ <span class="hljs-variable">SSL_shutdown</span><br>                                 ├─ <span class="hljs-variable">close</span> <span class="hljs-variable">pipe</span> <span class="hljs-variable">FD</span><br>                                 ├─ <span class="hljs-variable">waitpid</span> 子进程<br>                                 └─ <span class="hljs-variable">free</span> 内部缓冲<br></code></pre></td></tr></table></figure>
+
+<p>LVE 服务端（<code>lve_win64.exe</code>）同时在跑这个循环：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight isbl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs isbl"><span class="hljs-function"><span class="hljs-title">lve_main</span>() / <span class="hljs-title">mlle_lve_receive</span>() <span class="hljs-variable">loop</span>:</span><br><span class="hljs-function">  <span class="hljs-title">ssl_setup_lve</span>()</span><br>  <span class="hljs-function"><span class="hljs-title">lve_perform_handshake</span>()</span><br>  <span class="hljs-variable"><span class="hljs-keyword">while</span></span> <span class="hljs-variable">!shutdown</span>:<br>    <span class="hljs-function"><span class="hljs-title">mlle_lve_validate_pubkey</span>()      ;; 用 <span class="hljs-variable">global_tool_pub_key</span> 比对白名单</span><br><span class="hljs-function">    <span class="hljs-title">mlle_lve_handle_command</span>():</span><br><span class="hljs-function">      <span class="hljs-variable"><span class="hljs-keyword">if</span></span> <span class="hljs-variable">FILE</span>:</span><br><span class="hljs-function">        <span class="hljs-title">mlle_lve_file</span>()</span><br>          ├─ <span class="hljs-function"><span class="hljs-title">mlle_io_read_file</span>()   ;; 读 .moc</span><br><span class="hljs-function">          ├─ <span class="hljs-title">mlle_cr_decrypt</span>()     ;; 用 <span class="hljs-variable">LVE</span> 私钥解密</span><br><span class="hljs-function">          └─ <span class="hljs-title">mlle_send_length_form</span>()</span><br>      <span class="hljs-variable"><span class="hljs-keyword">if</span></span> <span class="hljs-variable">FEATURE</span>: 调 <span class="hljs-variable">license_manager</span><br>      <span class="hljs-variable"><span class="hljs-keyword">if</span></span> <span class="hljs-variable">VERSION</span> / <span class="hljs-variable">LIB</span> / <span class="hljs-variable">RETURNFEATURE</span>: 走对应分支<br></code></pre></td></tr></table></figure>
+
+<p>关键观察：</p>
+<ul>
+<li><strong>并行解析强制串行</strong>：因 LVE 连接是单连接，OMC 看到 <code>lveInstance != NULL</code> 自动切单线程。</li>
+<li><strong>解密在 LVE 进程里做</strong>：明文从 pipe 流回 OMC，OMC 拿到的是 <code>char *</code>，不落盘。</li>
+<li><strong>LVE 退出时机</strong>：<code>Parser.stopLibraryVendorExecutable()</code> 在 <code>loadClassFromMp</code> 末尾调用，所以一次加载完一个库 LVE 就退出。加载下个库再 spawn 一个新的。</li>
+</ul>
+<h2 id="九、动手-Demo：从零打包-HelloEncrypted-mol"><a href="#九、动手-Demo：从零打包-HelloEncrypted-mol" class="headerlink" title="九、动手 Demo：从零打包 HelloEncrypted.mol"></a>九、动手 Demo：从零打包 HelloEncrypted.mol</h2><p>下面是一个能跑通的最小 demo。完整流程假定你已经按 §六、§七 改完了 OMC 源码，并且 SEMLA 已经编完（产物在 <code>OMEncryption/3rdParty/SEMLA/build/install/</code>）。</p>
+<h3 id="9-1-写-demo-库源码"><a href="#9-1-写-demo-库源码" class="headerlink" title="9.1 写 demo 库源码"></a>9.1 写 demo 库源码</h3><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">mkdir</span> -p /c/dev/HelloEncrypted/HelloEncrypted/Internal<br><span class="hljs-built_in">cd</span> /c/dev/HelloEncrypted/HelloEncrypted<br></code></pre></td></tr></table></figure>
+
+<p><code>package.mo</code>（顶层包，文档可见）：</p>
+<p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs modelica">within ;<br>package HelloEncrypted &quot;演示加密库（看得见这段文档）&quot;<br>  extends Modelica.Icons.Package;<br>  annotation(<br>    version=&quot;1.0.0&quot;,<br>    Documentation(info=&quot;&lt;html&gt;<br>&lt;p&gt;这个包导出 &lt;code&gt;PublicAPI&lt;/code&gt;，内部计算被加密。&lt;/p&gt;<br>&lt;/html&gt;&quot;),<br>    Protection(access=Access.documentation));<br>end HelloEncrypted;<br></code></pre></td></tr></table></figure>
+
+<p><code>package.order</code>：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">PublicAPI<br>Internal<br></code></pre></td></tr></table></figure>
+
+<p><code>PublicAPI.mo</code>（接口可见、方程不可见）：</p>
+<p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs modelica">within HelloEncrypted;<br>model PublicAPI &quot;对外接口（接口可见，方程不可见）&quot;<br>  parameter Real gain = 2.0 &quot;增益系数&quot;;<br>  Modelica.Blocks.Interfaces.RealInput u &quot;输入&quot;;<br>  Modelica.Blocks.Interfaces.RealOutput y &quot;输出 = 内部秘密公式(u, gain)&quot;;<br>protected<br>  HelloEncrypted.Internal.SecretFormula sf(k=gain);<br>equation<br>  connect(u, sf.u);<br>  connect(sf.y, y);<br>  annotation(<br>    Documentation(info=&quot;&lt;html&gt;用户可读到这段说明，但 SecretFormula 内部完全不可见。&lt;/html&gt;&quot;),<br>    Protection(access=Access.documentation));<br>end PublicAPI;<br></code></pre></td></tr></table></figure>
+
+<p><code>Internal/package.mo</code>：</p>
+<p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs modelica">within HelloEncrypted;<br>package Internal &quot;内部实现 - 用户看不到&quot;<br>  extends Modelica.Icons.InternalPackage;<br>  annotation(Protection(access=Access.hide));<br>end Internal;<br></code></pre></td></tr></table></figure>
+
+<p><code>Internal/package.order</code>：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">SecretFormula<br></code></pre></td></tr></table></figure>
+
+<p><code>Internal/SecretFormula.mo</code>（核心算法）：</p>
+<p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs modelica">within HelloEncrypted.Internal;<br>model SecretFormula &quot;这就是核心算法（加密后用户看不到方程）&quot;<br>  parameter Real k = 1.0;<br>  Modelica.Blocks.Interfaces.RealInput u;<br>  Modelica.Blocks.Interfaces.RealOutput y;<br>equation<br>  /* 假装这是商业秘密 */<br>  y = k * u + 0.5 * sin(time) - 0.1 * u^2;<br>  annotation(Protection(access=Access.hide));<br>end SecretFormula;<br></code></pre></td></tr></table></figure>
+
+<p>测试模型（不会进 <code>.mol</code>）<code>/c/dev/HelloEncrypted/TestRun.mo</code>：</p>
+<p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs modelica">model TestRun &quot;用 HelloEncrypted.PublicAPI 做仿真&quot;<br>  HelloEncrypted.PublicAPI api(gain=3.0);<br>  Modelica.Blocks.Sources.Sine src(amplitude=1, f=1);<br>equation<br>  connect(src.y, api.u);<br>end TestRun;<br></code></pre></td></tr></table></figure>
+
+<p><code>Annotation(Protection(access=...))</code> 这套是 Modelica 规范 §18.9 的开关：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>用户能看到的</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Access.hide</code></td>
+<td>完全不可见</td>
+</tr>
+<tr>
+<td><code>Access.documentation</code></td>
+<td>图标 + 文档可见，equation 不可见</td>
+</tr>
+<tr>
+<td><code>Access.packageText</code></td>
+<td>全部可见（<strong>绝不要用</strong>）</td>
+</tr>
+</tbody></table>
+<p>OM 和 Dymola 都遵守这套，所以一份 <code>.mol</code> 跨工具行为一致。</p>
+<h3 id="9-2-准备-LVE"><a href="#9-2-准备-LVE" class="headerlink" title="9.2 准备 LVE"></a>9.2 准备 LVE</h3><p>packagetool 加密时需要在库的 <code>.library/</code> 目录中找到 LVE：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash">SEMLA_BLD=/c/dev/OpenModelica/OMEncryption/3rdParty/SEMLA/build<br><span class="hljs-built_in">mkdir</span> -p /c/dev/HelloEncrypted/HelloEncrypted/.library<br><span class="hljs-built_in">cp</span> <span class="hljs-variable">$SEMLA_BLD</span>/install/bin/LVE/lve_win64.exe \<br>   /c/dev/HelloEncrypted/HelloEncrypted/.library/<br></code></pre></td></tr></table></figure>
+
+<h3 id="9-3-加密打包"><a href="#9-3-加密打包" class="headerlink" title="9.3 加密打包"></a>9.3 加密打包</h3><p>写 <code>/c/dev/HelloEncrypted/build.mos</code>：</p>
+<p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs modelica">loadModel(Modelica);                                          getErrorString();<br>loadFile(&quot;C:/dev/HelloEncrypted/HelloEncrypted/package.mo&quot;);  getErrorString();<br>buildEncryptedPackage(HelloEncrypted, true);                  getErrorString();<br></code></pre></td></tr></table></figure>
+
+<p>执行（注意 <code>APPDATA</code> 不可缺）：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">export</span> OPENMODELICAHOME=/c/dev/OpenModelica/build_cmake/install_cmake<br><span class="hljs-built_in">export</span> APPDATA=/c/Users/$(<span class="hljs-built_in">whoami</span>)/AppData/Roaming<br><span class="hljs-built_in">cd</span> /c/dev/HelloEncrypted<br><span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc.exe build.mos<br></code></pre></td></tr></table></figure>
+
+<p>期望输出：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">true<br>&quot;&quot;<br>true<br>&quot;&quot;<br>true       ← buildEncryptedPackage 成功，关键！<br>&quot;&quot;<br></code></pre></td></tr></table></figure>
+
+<p><code>HelloEncrypted.mol</code> 生成在当前目录，约 2 MB。</p>
+<h3 id="9-4-验证-mol-结构"><a href="#9-4-验证-mol-结构" class="headerlink" title="9.4 验证 .mol 结构"></a>9.4 验证 .mol 结构</h3><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">unzip -l /c/dev/HelloEncrypted/HelloEncrypted.mol<br></code></pre></td></tr></table></figure>
+
+<p>应当看到：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">HelloEncrypted/package.moc<br>HelloEncrypted/package.order<br>HelloEncrypted/PublicAPI.moc<br>HelloEncrypted/Internal/package.moc<br>HelloEncrypted/Internal/package.order<br>HelloEncrypted/Internal/SecretFormula.moc<br>HelloEncrypted/.library/manifest.xml<br>HelloEncrypted/.library/lve_win64.exe<br></code></pre></td></tr></table></figure>
+
+<p><code>.mo</code> → <code>.moc</code>，<code>package.order</code> 与 <code>manifest.xml</code> 保持明文。</p>
+<h2 id="十、验证加密效果：源码不可见、文档可读、仿真可跑"><a href="#十、验证加密效果：源码不可见、文档可读、仿真可跑" class="headerlink" title="十、验证加密效果：源码不可见、文档可读、仿真可跑"></a>十、验证加密效果：源码不可见、文档可读、仿真可跑</h2><p>加密最终要回答三个问题：</p>
+<ol>
+<li><strong>源码够隐藏吗？</strong></li>
+<li><strong>接口和文档够清晰吗？</strong></li>
+<li><strong>加密后还能正常仿真吗？</strong></li>
+</ol>
+<h3 id="10-1-源码不可见"><a href="#10-1-源码不可见" class="headerlink" title="10.1 源码不可见"></a>10.1 源码不可见</h3><p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs modelica">loadModel(Modelica);                                                 getErrorString();<br>loadEncryptedPackage(&quot;C:/dev/HelloEncrypted/HelloEncrypted.mol&quot;);    getErrorString();<br>list(HelloEncrypted.PublicAPI);<br>list(HelloEncrypted.Internal.SecretFormula);<br>getDocumentationAnnotation(HelloEncrypted.PublicAPI);<br></code></pre></td></tr></table></figure>
+
+<p>实测结果：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>输出</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>list(PublicAPI)</code></td>
+<td><code>&quot;&quot;</code>（空）</td>
+</tr>
+<tr>
+<td><code>list(SecretFormula)</code></td>
+<td><code>&quot;&quot;</code>（空）</td>
+</tr>
+<tr>
+<td><code>getDocumentationAnnotation(PublicAPI)</code></td>
+<td><code>&#123;&quot;&lt;html&gt;用户可读到这段说明...&lt;/html&gt;&quot;, &quot;&quot;, &quot;&quot;&#125;</code></td>
+</tr>
+</tbody></table>
+<p><code>list()</code> 返回空字符串就是 Modelica 规范要求的”hide”语义；同时文档 annotation 仍然可读，这是 <code>Access.documentation</code> 的设计意图。</p>
+<h3 id="10-2-仿真可跑"><a href="#10-2-仿真可跑" class="headerlink" title="10.2 仿真可跑"></a>10.2 仿真可跑</h3><p class="code-caption" data-lang="modelica" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs modelica">loadModel(Modelica);                                                 getErrorString();<br>loadEncryptedPackage(&quot;C:/dev/HelloEncrypted/HelloEncrypted.mol&quot;);    getErrorString();<br>loadFile(&quot;C:/dev/HelloEncrypted/TestRun.mo&quot;);                        getErrorString();<br>simulate(TestRun, stopTime=2.0);                                     getErrorString();<br></code></pre></td></tr></table></figure>
+
+<p><code>simulate</code> 应返回成功，<code>TestRun_res.mat</code> 生成在当前目录。仿真结果与原始 <code>.mo</code> 完全一致。</p>
+<h3 id="10-3-flat-code-侧信道检查"><a href="#10-3-flat-code-侧信道检查" class="headerlink" title="10.3 flat code 侧信道检查"></a>10.3 flat code 侧信道检查</h3><p>这是很多人会忽略但<strong>至关重要</strong>的一步：OMC 在 <code>instantiateModel</code> 阶段会把整个模型展平。如果加密路径没有屏蔽这阶段，flat code 里仍然能看到原方程：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cat</span> &gt; test_flat.mos &lt;&lt;<span class="hljs-string">&#x27;EOF&#x27;</span><br>loadModel(Modelica);                                              getErrorString();<br>loadEncryptedPackage(<span class="hljs-string">&quot;C:/dev/HelloEncrypted/HelloEncrypted.mol&quot;</span>); getErrorString();<br>loadFile(<span class="hljs-string">&quot;C:/dev/HelloEncrypted/TestRun.mo&quot;</span>);                     getErrorString();<br>instantiateModel(TestRun);<br>EOF<br><span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc.exe test_flat.mos 2&gt;&amp;1 | grep <span class="hljs-string">&quot;0.5.*sin\|0.1.*u\^2&quot;</span><br></code></pre></td></tr></table></figure>
+
+<p>期望：grep 无输出。如果秘密方程出现在 flat code 中，说明 OM 的加密路径在 instantiate 时未屏蔽——需要 patch OM 或者在源码端补 <code>final</code> &#x2F; <code>protected</code> 多加一层。</p>
+<h2 id="十一、踩坑实录：8-个非平凡的坑"><a href="#十一、踩坑实录：8-个非平凡的坑" class="headerlink" title="十一、踩坑实录：8 个非平凡的坑"></a>十一、踩坑实录：8 个非平凡的坑</h2><p>这一节列的是实测才会碰到、文档里基本找不到答案的坑。完整 16 个坑在 <a target="_blank" rel="noopener" href="https://github.com/yourorg/omc-semla-howto">Step-by-step playbook</a> 里有，这里挑最关键的。</p>
+<h3 id="P1-cmake-报-“Target-is-32-bits-not-supported”"><a href="#P1-cmake-报-“Target-is-32-bits-not-supported”" class="headerlink" title="P1. cmake 报 “Target is 32 bits - not supported”"></a>P1. cmake 报 “Target is 32 bits - not supported”</h3><p><strong>症状</strong>：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">-- CMAKE_SIZEOF_VOID_P=<br>CMake Error at CMakeLists.txt:55 (message):<br>  Target is 32 bits - not supported<br></code></pre></td></tr></table></figure>
+
+<p><strong>根因</strong>：不在 UCRT64 环境中。普通 bash &#x2F; mingw64 &#x2F; msys shell 下，cmake 检测不到 <code>CMAKE_SIZEOF_VOID_P</code>（空值），SEMLA 把空值当作非 64 位。</p>
+<p><strong>解决</strong>：必须在 <code>C:\OMDevUCRT\tools\msys\ucrt64.exe</code> 中运行。验证：<code>gcc -dumpmachine</code> 应输出 <code>x86_64-w64-mingw32</code>。</p>
+<h3 id="P3-OpenSSL-configure-报-“perl-doesn’t-produce-Unix-like-paths”"><a href="#P3-OpenSSL-configure-报-“perl-doesn’t-produce-Unix-like-paths”" class="headerlink" title="P3. OpenSSL configure 报 “perl doesn’t produce Unix like paths”"></a>P3. OpenSSL configure 报 “perl doesn’t produce Unix like paths”</h3><p><strong>症状</strong>：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">This perl implementation doesn&#x27;t produce Unix like paths<br>This Perl version: 5.38.2 for MSWin32-x64-multi-thread<br></code></pre></td></tr></table></figure>
+
+<p><strong>根因</strong>：UCRT64 自带的 perl 是 Windows 原生版本（<code>/ucrt64/bin/perl</code>，<code>MSWin32-x64-multi-thread</code>），但 OpenSSL configure 需要 MSYS2 版本（<code>/usr/bin/perl</code>，<code>x86_64-msys-thread-multi</code>）。</p>
+<p><strong>解决</strong>：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">export</span> PATH=/usr/bin:<span class="hljs-variable">$PATH</span><br><span class="hljs-built_in">which</span> perl                 <span class="hljs-comment"># 应显示 /usr/bin/perl</span><br>perl --version             <span class="hljs-comment"># 应显示 x86_64-msys-thread-multi</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="P4-SEMLA-packagetool-报-“conflicting-types-for-closeZipArchive”"><a href="#P4-SEMLA-packagetool-报-“conflicting-types-for-closeZipArchive”" class="headerlink" title="P4. SEMLA packagetool 报 “conflicting types for closeZipArchive”"></a>P4. SEMLA packagetool 报 “conflicting types for closeZipArchive”</h3><p><strong>症状</strong>：编译到 89% 报：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">error: conflicting types for &#x27;closeZipArchive&#x27;; have &#x27;void(struct zip_t *)&#x27;<br></code></pre></td></tr></table></figure>
+
+<p><strong>根因</strong>：<code>src/packagetool/utils.h</code> 在函数签名里用了 <code>struct zip_t *</code> 但没 include <code>zip.h</code> 也没前向声明。GCC 14 把每个函数参数的前向声明当作独立类型。</p>
+<p><strong>解决</strong>：在 <code>utils.h</code> 的 <code>#include &lt;mlle_cr_decrypt.h&gt;</code> 之后加：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">zip_t</span>;</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="P10-libffi-cmake-报-“Unknown-host”"><a href="#P10-libffi-cmake-报-“Unknown-host”" class="headerlink" title="P10. libffi cmake 报 “Unknown host”"></a>P10. libffi cmake 报 “Unknown host”</h3><p><strong>症状</strong>：cmake 配置到 <code>OMCompiler/3rdParty/libffi/.cmake/configure_platform.cmake:42</code> 时报 <code>Unknown host.</code>。</p>
+<p><strong>根因</strong>：MSYS Makefiles 生成器下 <code>CMAKE_SYSTEM_PROCESSOR</code> 为空字符串，libffi 的所有 <code>HOST_ARCH MATCHES</code> 条件都不匹配。</p>
+<p><strong>解决</strong>：cmake 加 <code>-DTARGET_PLATFORM=X86_WIN64</code>，直接跳过 libffi 的自动检测：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs bash">cmake -S . -B build_cmake \<br>  -DCMAKE_BUILD_TYPE=Release \<br>  -DTARGET_PLATFORM=X86_WIN64 \      <span class="hljs-comment"># &lt;─ 关键</span><br>  -DOM_ENABLE_ENCRYPTION=ON \<br>  -DOM_USE_CCACHE=OFF<br></code></pre></td></tr></table></figure>
+
+<h3 id="P13-loadEncryptedPackage-segfault（ANTLR-函数不存在）"><a href="#P13-loadEncryptedPackage-segfault（ANTLR-函数不存在）" class="headerlink" title="P13. loadEncryptedPackage segfault（ANTLR 函数不存在）"></a>P13. loadEncryptedPackage segfault（ANTLR 函数不存在）</h3><p><strong>症状</strong>：<code>loadEncryptedPackage</code> 立即 segfault（exit code 139）。</p>
+<p><strong>根因</strong>：<code>parse.c</code> 的 <code>.moc</code> 分支里用了 <code>antlr3NewAsciiStringCopyStream</code>——这函数在 OMC 使用的 ANTLR 3.2 和 3.4 中都<strong>不存在</strong>。链接时解析到错误地址，运行时 crash。</p>
+<p><strong>解决</strong>：用版本宏选择正确函数：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">if</span> defined(ANTLR_C_VERSION_3_2)</span><br>  input = antlr3NewAsciiStringInPlaceStream(<br>      (pANTLR3_UINT8) output_data, <span class="hljs-built_in">strlen</span>(output_data), fName);<br><span class="hljs-meta">#<span class="hljs-keyword">elif</span> defined(ANTLR_C_VERSION_3_4)</span><br>  input = antlr3StringStreamNew(<br>      (pANTLR3_UINT8) output_data, ANTLR3_ENC_8BIT, <span class="hljs-built_in">strlen</span>(output_data), fName);<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br></code></pre></td></tr></table></figure>
+
+<h3 id="P14-stopLibraryVendorExecutable-segfault（void-vs-void-）"><a href="#P14-stopLibraryVendorExecutable-segfault（void-vs-void-）" class="headerlink" title="P14. stopLibraryVendorExecutable segfault（void ** vs void *）"></a>P14. stopLibraryVendorExecutable segfault（<code>void **</code> vs <code>void *</code>）</h3><p><strong>症状</strong>：<code>loadEncryptedPackage</code> 加载成功，清理阶段 segfault。GDB backtrace：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">#0 mlle_connections_free()<br>#1 ParserExt_stopLibraryVendorExecutable()<br></code></pre></td></tr></table></figure>
+
+<p><strong>根因</strong>：OMC 的 <code>.mo</code> 层对 <code>stop</code> &#x2F; <code>checkLicense</code> &#x2F; <code>checkFeature</code> 的 <code>lveInstance</code> 参数是按值传递（<code>void *</code>），但桥接代码声明成了 <code>void **</code>。把 <code>void *</code> 当 <code>void **</code> 解引用，读到垃圾地址。</p>
+<p>GDB 现场：</p>
+<p class="code-caption" data-lang="text" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">startLVE: *lveInstance = 0x...3ec0          ← 正确指针<br>stopLVE:  lveInstance  = 0x...3ec0          ← OMC 传的是值<br>          *lveInstance = 0x0000000500000004 ← 解引用得到垃圾 → crash<br></code></pre></td></tr></table></figure>
+
+<p><strong>解决</strong>：除 <code>start</code> 外其他 4 个函数的 <code>lveInstance</code> 都改成 <code>void *</code>：</p>
+<p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* 错（crash） */</span><br><span class="hljs-type">void</span> <span class="hljs-title function_">stopLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> **lveInstance)</span>;<br><span class="hljs-comment">/* 对 */</span><br><span class="hljs-type">void</span> <span class="hljs-title function_">stopLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance)</span>;<br></code></pre></td></tr></table></figure>
+
+<h3 id="P15-packagetool-报-“No-LVE-was-found”"><a href="#P15-packagetool-报-“No-LVE-was-found”" class="headerlink" title="P15. packagetool 报 “No LVE was found”"></a>P15. packagetool 报 “No LVE was found”</h3><p><strong>症状</strong>：<code>buildEncryptedPackage</code> 返回 false，错误 <code>No LVE was found. Encryption not possible.</code></p>
+<p><strong>根因</strong>：<code>packagetool.exe</code> 找 LVE 时是从<strong>自身可执行文件所在目录的 <code>LVE/</code> 子目录</strong>读取（即 <code>omc-semla/LVE/lve_win64.exe</code>）。</p>
+<p><strong>解决</strong>：拷贝 <code>lve_win64.exe</code> 时<strong>两个位置</strong>都要放：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">mkdir</span> -p <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla<br><span class="hljs-built_in">mkdir</span> -p <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/LVE<br><span class="hljs-built_in">cp</span> <span class="hljs-variable">$SEMLA_BLD</span>/install/bin/LVE/lve_win64.exe <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/<br><span class="hljs-built_in">cp</span> <span class="hljs-variable">$SEMLA_BLD</span>/install/bin/LVE/lve_win64.exe <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/LVE/<br></code></pre></td></tr></table></figure>
+
+<p>前者供 OMC 运行时使用，后者供 packagetool 加密打包时查找。</p>
+<h3 id="P16-PEM-文件-CRLF-行尾导致-TLS-握手失败"><a href="#P16-PEM-文件-CRLF-行尾导致-TLS-握手失败" class="headerlink" title="P16. PEM 文件 CRLF 行尾导致 TLS 握手失败"></a>P16. PEM 文件 CRLF 行尾导致 TLS 握手失败</h3><p><strong>症状</strong>：编译都过，运行时 <code>loadEncryptedPackage</code> 在 LVE 启动后立即 SSL handshake 失败。</p>
+<p><strong>根因</strong>：Windows 上 git clone 默认 <code>core.autocrlf=true</code>，PEM 文件被加了 CRLF。SEMLA 把 PEM 内嵌进二进制时把 CRLF 也嵌进去了，运行时 OpenSSL 解析 PEM 失败。</p>
+<p><strong>解决</strong>：</p>
+<ol>
+<li>在 Step 1 一开始就设：</li>
+</ol>
+<p class="code-caption" data-lang="powershell" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs powershell">git config <span class="hljs-literal">--global</span> core.eol lf<br>git config <span class="hljs-literal">--global</span> core.autocrlf input<br></code></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>已生成的 PEM 强制 LF：</li>
+</ol>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cd</span> /c/dev/OpenModelica/OMEncryption/3rdParty/SEMLA/build<br>dos2unix private_key_path/private_key_tool.pem<br>dos2unix private_key_lve_path/private_key_lve.pem<br>dos2unix public_keys_path/public_key_tool.pem<br></code></pre></td></tr></table></figure>
+
+<h2 id="十二、跨工具：Dymola-2025x-加载"><a href="#十二、跨工具：Dymola-2025x-加载" class="headerlink" title="十二、跨工具：Dymola 2025x 加载"></a>十二、跨工具：Dymola 2025x 加载</h2><p>SEMLA 的卖点是跨工具，所以同一份 <code>.mol</code> 应该能在 Dymola 中加载。这条路并不平坦——Dymola 必须先把它的真实公钥加进 SEMLA LVE 白名单。</p>
+<h3 id="12-1-前置条件"><a href="#12-1-前置条件" class="headerlink" title="12.1 前置条件"></a>12.1 前置条件</h3><ul>
+<li>Dymola <strong>2025x 或更高</strong>（2024 及更早不支持 SEMLA）</li>
+<li>Windows x64（<code>.mol</code> 内嵌的是 <code>lve_win64.exe</code>）</li>
+<li>Dymola 真实公钥已加进 SEMLA <code>TOOLS_PUBLIC_KEYS_DIRECTORY</code>，并重新编 SEMLA</li>
+</ul>
+<h3 id="12-2-获取-Dymola-公钥"><a href="#12-2-获取-Dymola-公钥" class="headerlink" title="12.2 获取 Dymola 公钥"></a>12.2 获取 Dymola 公钥</h3><p>Dymola 公钥嵌在 Dymola 的可执行文件里。常规获取方式：</p>
+<ol>
+<li>Modelon 提供的 SEMLA 公钥包（厂商可申请）</li>
+<li>反向工程从 Dymola.exe 提取（合规问题，不推荐）</li>
+<li>走 Modelon Impact 的 SEMLA SDK，里面有官方密钥分发流程</li>
+</ol>
+<p>拿到 <code>public_key_dymola.pem</code> 后，放进：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cp</span> public_key_dymola.pem \<br>   /c/dev/OpenModelica/OMEncryption/3rdParty/SEMLA/build/public_keys_path/<br></code></pre></td></tr></table></figure>
+
+<p>然后<strong>重新编 SEMLA</strong>——LVE 二进制要把 Dymola 公钥嵌进去：</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cd</span> /c/dev/OpenModelica/OMEncryption/3rdParty/SEMLA/build<br>cmake --build . --config Release --target install<br></code></pre></td></tr></table></figure>
+
+<p><strong>关键</strong>：每次改 <code>public_keys_path/</code>，<strong>packagetool 和 LVE 必须同一次 build 出来</strong>，否则 <code>random_key_file.h</code> 不一致，packagetool 加密的 <code>.moc</code> LVE 解不开。</p>
+<h3 id="12-3-加载步骤"><a href="#12-3-加载步骤" class="headerlink" title="12.3 加载步骤"></a>12.3 加载步骤</h3><ol>
+<li>启动 Dymola 2025x</li>
+<li>File → Load… → 文件类型选 All files (<em>.</em>) → 选 <code>.mol</code></li>
+<li>验证：库出现在 Packages 浏览器，Internal 节点不出现，public model 的 equation 段为空</li>
+</ol>
+<h3 id="12-4-常见-Dymola-错误"><a href="#12-4-常见-Dymola-错误" class="headerlink" title="12.4 常见 Dymola 错误"></a>12.4 常见 Dymola 错误</h3><table>
+<thead>
+<tr>
+<th>错误信息</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>“LVE does not recognize Dymola as valid tool”</td>
+<td>Dymola 公钥未加进白名单</td>
+</tr>
+<tr>
+<td>“Suppressed errors for encrypted .moc”</td>
+<td>Modelica 库依赖未满足（先 loadLibrary Modelica）</td>
+</tr>
+<tr>
+<td>“Failed to decrypt file … might be corrupted”</td>
+<td>packagetool 与 LVE 来自不同 SEMLA build，密钥不匹配</td>
+</tr>
+</tbody></table>
+<h2 id="十三、生产化路线：从-dummy-到真混淆"><a href="#十三、生产化路线：从-dummy-到真混淆" class="headerlink" title="十三、生产化路线：从 dummy 到真混淆"></a>十三、生产化路线：从 dummy 到真混淆</h2><p>跑通 demo <strong>绝不等于</strong>可以发给客户。SEMLA 默认带的 obfuscator 和 license_manager 都是 dummy，离生产差三个量级。</p>
+<h3 id="13-1-替换-dummy-obfuscator"><a href="#13-1-替换-dummy-obfuscator" class="headerlink" title="13.1 替换 dummy obfuscator"></a>13.1 替换 dummy obfuscator</h3><p>默认的 <code>src/obfuscators/dummy/</code> 不混淆，AES 密钥几乎明放在 <code>lve_win64.exe</code> 里，反编译十分钟就能拿到。</p>
+<p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">mkdir</span> -p src/obfuscators/yslab<br><span class="hljs-comment"># 实现 mlle_obfuscator.h 里规定的接口</span><br><span class="hljs-comment"># 至少做：把嵌入到二进制里的 key/iv 字节通过自定义 shuffle / XOR 反向加载</span><br>cmake ... -DOBFUSCATOR=.../src/obfuscators/yslab<br></code></pre></td></tr></table></figure>
+
+<p>策略上：<strong>每个 release 换 obfuscator 版本</strong>，使破解成本随版本上升而上升。</p>
+<h3 id="13-2-替换-dummy-license-manager"><a href="#13-2-替换-dummy-license-manager" class="headerlink" title="13.2 替换 dummy license_manager"></a>13.2 替换 dummy license_manager</h3><p>默认的 <code>src/license_managers/testingdummy/</code> 永远返回 YES。生产替换为：</p>
+<ul>
+<li>接 FlexNet &#x2F; RLM &#x2F; 自研 license server</li>
+<li>或最简版”机器码 + 到期日 + feature 列表”签名文件</li>
+</ul>
+<p>License 检查逻辑在 LVE 端运行，所以可以做”启动时联网激活、本地缓存到期”的策略。</p>
+<h3 id="13-3-密钥进-Vault"><a href="#13-3-密钥进-Vault" class="headerlink" title="13.3 密钥进 Vault"></a>13.3 密钥进 Vault</h3><p>3 个密钥目录从 git 移除，CI 构建时短期 token 拉取。同时建立”密钥换代记录”：哪一批 <code>.mol</code> 用哪一对密钥编出来的，新版本怎么和老版本平滑迁移。</p>
+<h3 id="13-4-flat-code-防泄露"><a href="#13-4-flat-code-防泄露" class="headerlink" title="13.4 flat code 防泄露"></a>13.4 flat code 防泄露</h3><p>按 §10.3 跑 <code>instantiateModel</code>，grep 内部方程是否泄露。如果泄露：</p>
+<ul>
+<li>在源码端补 <code>final</code> &#x2F; <code>protected</code>（最低成本）</li>
+<li>patch OMC 的 instantiate 阶段（复杂，但根本）</li>
+</ul>
+<h2 id="十四、与-Dymola-私有加密的对比"><a href="#十四、与-Dymola-私有加密的对比" class="headerlink" title="十四、与 Dymola 私有加密的对比"></a>十四、与 Dymola 私有加密的对比</h2><p>什么时候选 SEMLA、什么时候选其他方案？</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Dymola 私有 <code>.mol</code>（旧）</th>
+<th>SEMLA <code>.mol</code>（开源）</th>
+<th>不加密 <code>.mo</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>工具锁定</td>
+<td>只能 Dymola</td>
+<td>OMC + Dymola 2025x + Impact + SimulationX 2025</td>
+<td>任意</td>
+</tr>
+<tr>
+<td>加密算法</td>
+<td>私有，黑盒</td>
+<td>AES-256-CBC + RSA + TLS 1.2，可审计</td>
+<td>无</td>
+</tr>
+<tr>
+<td>Feature 级 license</td>
+<td>支持</td>
+<td>支持</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td>跨平台 LVE</td>
+<td>是</td>
+<td>是（按平台打包多份）</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td>自研加密强度</td>
+<td>不可改</td>
+<td>可改 obfuscator + license_manager</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td>学习成本</td>
+<td>低（GUI 点点）</td>
+<td>高（需要编 OMC + SEMLA）</td>
+<td>零</td>
+</tr>
+<tr>
+<td>商业绑定</td>
+<td>必须买 Dymola 授权</td>
+<td>无（BSD-3-Clause）</td>
+<td>无</td>
+</tr>
+</tbody></table>
+<p>选 SEMLA 的典型场景：</p>
+<ul>
+<li>想给客户多种工具选择（OMC 免费、Dymola 商用）</li>
+<li>想自己控制密钥和混淆算法</li>
+<li>想接自家 license server</li>
+</ul>
+<p>选 Dymola 私有方案：</p>
+<ul>
+<li>公司全套都已经买了 Dymola，且不打算给非 Dymola 用户</li>
+<li>不想搞编译链路、想最快出包</li>
+</ul>
+<h2 id="十五、最佳实践清单"><a href="#十五、最佳实践清单" class="headerlink" title="十五、最佳实践清单"></a>十五、最佳实践清单</h2><p>落地时直接照抄的硬规则：</p>
+<h3 id="加密前"><a href="#加密前" class="headerlink" title="加密前"></a>加密前</h3><ul>
+<li><input disabled="" type="checkbox"> 每个需要保护的 class 都加 <code>Protection(access=Access.hide)</code> 或 <code>Access.documentation</code></li>
+<li><input disabled="" type="checkbox"> <code>package.order</code> 完整列出所有子节点（packagetool 靠它确定文件列表）</li>
+<li><input disabled="" type="checkbox"> 加密前先用普通 <code>loadFile + simulate</code> 跑通，确保源码端无 bug</li>
+<li><input disabled="" type="checkbox"> <code>manifest.xml</code> 的 <code>compatibility/tool/minversion</code> 写明最低 OMC 版本</li>
+</ul>
+<h3 id="加密时"><a href="#加密时" class="headerlink" title="加密时"></a>加密时</h3><ul>
+<li><input disabled="" type="checkbox"> packagetool 和 LVE 必须来自<strong>同一次</strong> SEMLA build，否则密钥不匹配</li>
+<li><input disabled="" type="checkbox"> <code>.library/</code> 下确保对应平台的 LVE 都打包了</li>
+<li><input disabled="" type="checkbox"> 跨平台分发：Linux LVE 需要 <code>chmod +x</code> 标志位（packagetool 会做，但要 verify）</li>
+<li><input disabled="" type="checkbox"> PEM 文件强制 LF 行尾（<code>dos2unix</code>）</li>
+</ul>
+<h3 id="加密后"><a href="#加密后" class="headerlink" title="加密后"></a>加密后</h3><ul>
+<li><input disabled="" type="checkbox"> <code>list()</code> 验证 hide class 返回空</li>
+<li><input disabled="" type="checkbox"> <code>simulate</code> 验证仿真结果与原始 <code>.mo</code> 一致</li>
+<li><input disabled="" type="checkbox"> <code>instantiateModel</code> flat code 不含秘密方程</li>
+<li><input disabled="" type="checkbox"> Dymola 2025x 加载（如果跨工具）</li>
+<li><input disabled="" type="checkbox"> Manifest 中标的 <code>language version</code> 与实际 <code>.mo</code> 兼容</li>
+</ul>
+<h3 id="密钥管理"><a href="#密钥管理" class="headerlink" title="密钥管理"></a>密钥管理</h3><ul>
+<li><input disabled="" type="checkbox"> 3 个密钥目录<strong>绝不</strong>进公开仓库</li>
+<li><input disabled="" type="checkbox"> CI 构建时短期 token 拉取，不长期凭证</li>
+<li><input disabled="" type="checkbox"> 每次密钥更新做一次”客户清单”——已发 <code>.mol</code> 必须重新打包并通知</li>
+<li><input disabled="" type="checkbox"> 建立密钥换代记录（哪个版本用哪批密钥）</li>
+</ul>
+<h3 id="生产前-checklist"><a href="#生产前-checklist" class="headerlink" title="生产前 checklist"></a>生产前 checklist</h3><ul>
+<li><input disabled="" type="checkbox"> 替换 dummy obfuscator</li>
+<li><input disabled="" type="checkbox"> 替换 dummy license_manager（接 FlexNet &#x2F; RLM &#x2F; 自研）</li>
+<li><input disabled="" type="checkbox"> 移除 LVE 中的调试日志（<code>fopen/fprintf</code> 调试代码）</li>
+<li><input disabled="" type="checkbox"> flat code 防泄露已 patch</li>
+<li><input disabled="" type="checkbox"> 已在客户实际环境（不是开发机）走通整套流程</li>
+</ul>
+<h2 id="附录-A：核心命令速查"><a href="#附录-A：核心命令速查" class="headerlink" title="附录 A：核心命令速查"></a>附录 A：核心命令速查</h2><p class="code-caption" data-lang="bash" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># 生成 3 套密钥</span><br>openssl genrsa -out private_key_path/private_key_tool.pem 4096<br>openssl genrsa -out private_key_lve_path/private_key_lve.pem 4096<br>openssl rsa -pubout -<span class="hljs-keyword">in</span> private_key_path/private_key_tool.pem \<br>            -out public_keys_path/public_key_tool.pem<br>dos2unix private_key_path/*.pem private_key_lve_path/*.pem public_keys_path/*.pem<br><br><span class="hljs-comment"># SEMLA 配置</span><br>cmake <span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_SRC</span>&quot;</span> \<br>  -DCMAKE_INSTALL_PREFIX=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_BLD</span>/install&quot;</span> \<br>  -DDECRYPTOR=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_SRC</span>/decryptors/default&quot;</span> \<br>  -DLICENSE_MANAGER=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_SRC</span>/license_managers/testingdummy&quot;</span> \<br>  -DOBFUSCATOR=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_SRC</span>/obfuscators/dummy&quot;</span> \<br>  -DTOOL_PRIVATE_KEY_DIRECTORY=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_BLD</span>/private_key_path&quot;</span> \<br>  -DLVE_KEYS_DIRECTORY=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_BLD</span>/private_key_lve_path&quot;</span> \<br>  -DTOOLS_PUBLIC_KEYS_DIRECTORY=<span class="hljs-string">&quot;<span class="hljs-variable">$SEMLA_BLD</span>/public_keys_path&quot;</span> \<br>  -DDOWNLOADED_OPENSSL_SOURCE_URL=<span class="hljs-string">&quot;file://C:/dev/openssl-3.0.14.tar.gz&quot;</span> \<br>  -DDOWNLOADED_ZIP_SOURCE_URL=<span class="hljs-string">&quot;file://C:/dev/zip-v0.3.3.tar.gz&quot;</span> \<br>  -G <span class="hljs-string">&quot;MSYS Makefiles&quot;</span><br>cmake --build . --config Release --target install<br><br><span class="hljs-comment"># OMC 配置</span><br>cmake -S . -B build_cmake -Wno-dev -G <span class="hljs-string">&quot;MSYS Makefiles&quot;</span> \<br>  -DCMAKE_BUILD_TYPE=Release \<br>  -DTARGET_PLATFORM=X86_WIN64 \<br>  -DOM_ENABLE_ENCRYPTION=ON \<br>  -DOM_ENABLE_GUI_CLIENTS=OFF \<br>  -DOM_USE_CCACHE=OFF<br>make -C build_cmake -j4 install<br><br><span class="hljs-comment"># SEMLA 产物拷贝</span><br><span class="hljs-built_in">mkdir</span> -p <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/LVE<br><span class="hljs-built_in">cp</span> <span class="hljs-variable">$SEMLA_BLD</span>/install/bin/packagetool.exe  <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/<br><span class="hljs-built_in">cp</span> <span class="hljs-variable">$SEMLA_BLD</span>/install/bin/LVE/lve_win64.exe <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/<br><span class="hljs-built_in">cp</span> <span class="hljs-variable">$SEMLA_BLD</span>/install/bin/LVE/lve_win64.exe <span class="hljs-variable">$OPENMODELICAHOME</span>/bin/omc-semla/LVE/<br><br><span class="hljs-comment"># 一键加密</span><br>omc.exe &lt;&lt; <span class="hljs-string">&#x27;EOF&#x27;</span><br>loadModel(Modelica);<br>loadFile(<span class="hljs-string">&quot;path/to/MyLib/package.mo&quot;</span>);<br>buildEncryptedPackage(MyLib, <span class="hljs-literal">true</span>);<br>EOF<br></code></pre></td></tr></table></figure>
+
+<h2 id="附录-B：5-个桥接函数签名速查"><a href="#附录-B：5-个桥接函数签名速查" class="headerlink" title="附录 B：5 个桥接函数签名速查"></a>附录 B：5 个桥接函数签名速查</h2><p class="code-caption" data-lang="c" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/* lveInstance 是 void**（OUT 参数） */</span><br><span class="hljs-type">int</span>  <span class="hljs-title function_">startLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *path, <span class="hljs-type">void</span> **lveInstance)</span>;<br><br><span class="hljs-comment">/* lveInstance 是 void*（IN） */</span><br><span class="hljs-type">char</span> *<span class="hljs-title function_">parseEncryptedFile</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">char</span> *fileName, <span class="hljs-type">int</span> langStd, <span class="hljs-type">int</span> strict,</span><br><span class="hljs-params">                         <span class="hljs-type">int</span> runningTestsuite, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *libraryPath,</span><br><span class="hljs-params">                         <span class="hljs-type">void</span> *lveInstance)</span>;<br><br><span class="hljs-type">int</span>  <span class="hljs-title function_">checkLVEToolLicenseImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *packageName)</span>;<br><span class="hljs-type">int</span>  <span class="hljs-title function_">checkLVEToolFeatureImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance, <span class="hljs-type">const</span> <span class="hljs-type">char</span> *feature)</span>;<br><span class="hljs-type">void</span> <span class="hljs-title function_">stopLibraryVendorExecutableImpl</span><span class="hljs-params">(<span class="hljs-type">void</span> *lveInstance)</span>;<br></code></pre></td></tr></table></figure>
+
+<h2 id="附录-C：诊断决策树"><a href="#附录-C：诊断决策树" class="headerlink" title="附录 C：诊断决策树"></a>附录 C：诊断决策树</h2><p><code>loadEncryptedPackage</code> 失败时按这个顺序排查：</p>
+<p class="code-caption" data-lang="" data-line_number="frontend" data-trim_indent="backend" data-label_position="outer" data-labels_left="Code" data-labels_right=":" data-labels_copy=""><span class="code-caption-label"></span><a class="code-caption-copy"></a></p>
+
+<figure class="highlight vim"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><code class="hljs vim"><span class="hljs-number">1</span>. omc 二进制带 OM_ENABLE_ENCRYPTION 符号吗？<br>   strings omc.<span class="hljs-keyword">exe</span> | <span class="hljs-keyword">grep</span> mlle_start<br>   ├─ 否：OMC 没编出加密支持，回 §六 检查 <span class="hljs-number">4</span> 处改动<br>   └─ 是 → <span class="hljs-number">2</span><br><br><span class="hljs-number">2</span>. .mol 内有 .library/lve_<span class="hljs-symbol">&lt;platform&gt;</span> 吗？<br>   unzip -<span class="hljs-keyword">l</span> xx.mol | <span class="hljs-keyword">grep</span> lve<br>   ├─ 否：打包时漏拷 LVE，回 §<span class="hljs-number">9.2</span><br>   └─ 是 → <span class="hljs-number">3</span><br><br><span class="hljs-number">3</span>. LVE 子进程能启动吗？<br>   setCommandLineOptions(<span class="hljs-string">&quot;-d=encryption&quot;</span>)<br>   重新 loadEncryptedPackage 看日志<br>   ├─ <span class="hljs-string">&quot;Failed to start LVE&quot;</span>：路径错或权限问题<br>   └─ <span class="hljs-string">&quot;VERSION/LIB failed&quot;</span> → <span class="hljs-number">4</span><br><br><span class="hljs-number">4</span>. PEM 文件行尾对吗？<br>   <span class="hljs-keyword">file</span> private_key_*.pem | <span class="hljs-keyword">grep</span> CRLF<br>   ├─ 是 CRLF：dos2unix 后重编 SEMLA<br>   └─ LF → <span class="hljs-number">5</span><br><br><span class="hljs-number">5</span>. packagetool 和 LVE 同一次 build 吗？<br>   diff &lt;(sha256sum packagetool.<span class="hljs-keyword">exe</span>) &lt;(sha256sum 上次 build)<br>   ├─ 不同 build：重新 build SEMLA + 重新打包<br>   └─ 同一 build → <span class="hljs-number">6</span><br><br><span class="hljs-number">6</span>. Dymola 公钥已加进白名单吗？（仅 Dymola 加载时）<br>   <span class="hljs-keyword">ls</span> public_keys_path/<br>   ├─ 没有 public_key_dymola.pem：加进去重编 SEMLA<br>   └─ 有 → 提交 issue 到 SEMLA 仓库<br></code></pre></td></tr></table></figure>
+
+<h2 id="收尾"><a href="#收尾" class="headerlink" title="收尾"></a>收尾</h2><p>SEMLA + OpenModelica 这条路的核心价值是<strong>给 Modelica 库厂商一条不绑定 Dymola 的加密路径</strong>。代价是要自己维护一份 OMC fork、自己管密钥、自己替换 obfuscator——但换来的是工具链的自主权，以及”开源审计的安全保证”。</p>
+<p>如果你的库会卖给客户、客户工具栈混合、且你想长期维持产品独立性，这条路值得走。如果你只是想内部团队用 Dymola，那直接 Dymola 私有格式更省事。</p>
+<p>完整源码模板（含 <code>parseEncryption.c</code> 参考实现、<code>.gitignore</code> patch、CI 构建脚本）我在跟进的内部知识库里维护，后续会陆续把可以公开的部分整理到 GitHub。下一步打算写两篇姊妹文：一是「自研 obfuscator 怎么做到逆向成本平方级提升」，二是「LVE 接入 License Server 的工程实践」。</p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li>SEMLA 协议规范：<a target="_blank" rel="noopener" href="https://github.com/modelon-community/SEMLA/blob/master/doc/SEMLA.md">https://github.com/modelon-community/SEMLA/blob/master/doc/SEMLA.md</a></li>
+<li>Modelica Association 标准化 PR：<a target="_blank" rel="noopener" href="https://github.com/modelica/ModelicaSpecification/pull/2931">https://github.com/modelica/ModelicaSpecification/pull/2931</a></li>
+<li>Modelica 规范 §18.9 Protection</li>
+<li>OpenModelica User Guide §Encryption：<a target="_blank" rel="noopener" href="https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/encryption.html">https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/encryption.html</a></li>
+<li>工具支持矩阵：<a target="_blank" rel="noopener" href="https://github.com/modelon-community/SEMLA/blob/master/ToolSupport.md">https://github.com/modelon-community/SEMLA/blob/master/ToolSupport.md</a></li>
+</ul>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="../../../../../categories/%E4%BB%BF%E7%9C%9F%E5%BB%BA%E6%A8%A1/" class="category-chain-item">仿真建模</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="../../../../../tags/Modelica/" class="print-no-link">#Modelica</a>
+      
+        <a href="../../../../../tags/SEMLA/" class="print-no-link">#SEMLA</a>
+      
+        <a href="../../../../../tags/OpenModelica/" class="print-no-link">#OpenModelica</a>
+      
+        <a href="../../../../../tags/%E6%A8%A1%E5%9E%8B%E5%8A%A0%E5%AF%86/" class="print-no-link">#模型加密</a>
+      
+        <a href="../../../../../tags/LVE/" class="print-no-link">#LVE</a>
+      
+        <a href="../../../../../tags/%E6%A8%A1%E5%9E%8B%E4%BF%9D%E6%8A%A4/" class="print-no-link">#模型保护</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>用开源 OpenModelica 加密 Modelica 模型库：SEMLA 规范、源码改造与全流程实操</div>
+      <div>http://example.com/2026/05/25/modelica/semla-omc-encryption-deep-dive/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Irelia</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年5月25日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="../../../../07/22/electron/electron-fastapi-vue3-desktop-delivery/" title="Electron + Vue3 + Python FastAPI 桌面端交付全方案：动态端口、启动门与打包">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Electron + Vue3 + Python FastAPI 桌面端交付全方案：动态端口、启动门与打包</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="../../../15/bash/iterm2-multi-terminal/" title="iTerm2 多终端管理完全指南：从快捷键到工作流">
+                        <span class="hidden-mobile">iTerm2 多终端管理完全指南：从快捷键到工作流</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        总访问量 
+        <span id="busuanzi_value_site_pv"></span>
+         次
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        总访客数 
+        <span id="busuanzi_value_site_uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="../../../../../js/events.js" ></script>
+<script  src="../../../../../js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="../../../../../js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="../../../../../js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="../../../../../js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
